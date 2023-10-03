@@ -1,2 +1,10 @@
 # Project exclude paths
+
+# C exclude paths
 /cmake-build-debug/
+
+# Python exclude paths
+.venv/
+
+# Node exclude paths
+chart-app/node_modules/

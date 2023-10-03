@@ -7,14 +7,16 @@
 #include <unistd.h> // for sleep function
 #include <signal.h>
 #include <json-c/json.h>
+#include "common/utils.h"
 #include <stdbool.h>
 
 #define ADDRESS "tcp://127.0.0.1:5555"
 #define NUM_THREADS 100
 #define NUM_MESSAGES 1000
 #define DEADLINE_MS 2000 // Deadline in milliseconds
-#define STATS_FILEPATH "../server_stats.json"
+#define STATS_FILEPATH "../server_stats"
 #define SAVE_INTERVAL_SECONDS 10
+#define USE_JSON false
 
 // Flag to indicate if keyboard interruption has been received
 volatile bool interrupted = false;
@@ -47,20 +49,14 @@ void process_json_message(const char *json_str, long long recv_time) {
 
         // Create a JSON object for the message
         json_object *jobj = json_object_new_object();
-
-        json_object_object_add(jobj, "message", json_object_object_get(json_msg, "message"));
+        json_object_object_add(jobj, "id", json_object_object_get(json_msg, "id"));
+//        json_object_object_add(jobj, "message", json_object_object_get(json_msg, "message"));
         json_object_object_add(jobj, "send_time", json_object_object_get(json_msg, "send_time"));
         json_object_object_add(jobj, "recv_time", json_object_new_int64(recv_time));
         json_object_array_add(json_messages, jobj);
     }
 }
 
-// Function for calculating the current time in milliseconds
-long long current_time_millis() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long long)(ts.tv_sec) * 1000 + (long long)(ts.tv_nsec) / 1000000;
-}
 
 // Function executed by the server
 void *server_thread(void *args) {
@@ -76,7 +72,7 @@ void *server_thread(void *args) {
     while (!interrupted) {
         char message[512];
         zmq_recv(socket, message, sizeof(message), 0);
-        long long recv_time = current_time_millis();
+        long long recv_time = get_current_time_nanos();
 
         // Process the received message
         handle_message(message);
@@ -96,24 +92,71 @@ void *server_thread(void *args) {
 }
 
 // Function for saving statistics to a file
-void save_stats_to_file() {
+void save_stats_to_file(bool use_json) {
     if (json_messages == NULL || json_object_array_length(json_messages) == 0) {
         return;
     }
 
-    // Add the array of messages to the JSON statistics object
-    json_object *jobj = json_object_new_object();
-    json_object_object_add(jobj, "messages", json_messages);
+    if (use_json) {
+        // Save to json
 
-    const char *json_data = json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PRETTY);
-    FILE *json_file = fopen(STATS_FILEPATH, "w");
-    if (json_file) {
-        fprintf(json_file, "%s\n", json_data);
-        fclose(json_file);
+        json_object *jobj = json_object_new_object();
+        // Add the array of messages to the JSON statistics object
+        json_object_object_add(jobj, "messages", json_messages);
+
+        const char *json_data = json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PRETTY);
+        FILE *json_file = fopen(STATS_FILEPATH ".json", "w");
+        if (json_file) {
+            fprintf(json_file, "%s\n", json_data);
+            fclose(json_file);
+        }
+        // Clear json_messages
+        json_messages = json_object_new_array(); // Added to store all messages
+    } else {
+        // Save to csv
+        FILE *csv_file = fopen(STATS_FILEPATH ".csv", "w");
+        if (csv_file) {
+            // Write the CSV header
+//            fprintf(csv_file, "id,send_time,recv_time\n");
+            fprintf(csv_file, "id,num,diff\n");
+
+
+            unsigned long array_len = json_object_array_length(json_messages);
+            for (int i = 0; i < array_len; i++) {
+                json_object *json_msg = json_object_array_get_idx(json_messages, i);
+
+                // id, num = i, diff
+                long long diff = json_object_get_int64(json_object_object_get(json_msg, "recv_time")) -
+                                 json_object_get_int64(json_object_object_get(json_msg, "send_time"));
+
+                int new_diff = diff / 1000000;
+
+                if (json_msg) {
+                    fprintf(
+                            csv_file, "%s,%d,%d\n",
+                            json_object_get_string(json_object_object_get(json_msg, "id")),
+                            i + 1,
+                            new_diff
+                    );
+
+
+                    /*
+                    fprintf(
+                        csv_file, "%s,%s,%s\n",
+                        json_object_get_string(json_object_object_get(json_msg, "id")),
+                        json_object_get_string(json_object_object_get(json_msg, "send_time")),
+                        json_object_get_string(json_object_object_get(json_msg, "recv_time"))
+
+                    );
+                     */
+                }
+            }
+
+            fclose(csv_file);
+        }
     }
 
-    // Clear json_messages
-    json_messages = json_object_new_array(); // Added to store all messages
+
 }
 
 // Function for handling periodic statistics saving
@@ -125,7 +168,7 @@ void *stats_saver_thread(void *args) {
         sleep(SAVE_INTERVAL_SECONDS);
 
         // Save statistics to a file
-        save_stats_to_file();
+        save_stats_to_file(USE_JSON);
     }
     return NULL;
 }
@@ -150,7 +193,7 @@ int main() {
     pthread_join(stats_saver, NULL);
 
     // Save final statistics to a file
-    save_stats_to_file();
+    save_stats_to_file(USE_JSON);
 
     // Deallocate json_messages before exiting
     json_object_put(json_messages);

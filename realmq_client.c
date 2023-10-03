@@ -4,25 +4,13 @@
 #include <pthread.h>
 #include <zmq.h>
 #include <time.h>
+#include "common/utils.h"
 #include <json-c/json.h>
 #include <sys/time.h>
 
 #define ADDRESS "tcp://127.0.0.1:5555"
 #define NUM_THREADS 100
 #define NUM_MESSAGES 1000
-
-double getMilliseconds() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (double) tv.tv_sec * 1000.0 + (double) tv.tv_usec / 1000.0;
-}
-
-// Function to calculate the current time in milliseconds
-long long current_time_millis() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long long) (ts.tv_sec) * 1000 + (long long) (ts.tv_nsec) / 1000000;
-}
 
 // Function executed by client threads
 void *client_thread(void *thread_id) {
@@ -37,13 +25,13 @@ void *client_thread(void *thread_id) {
         sprintf(message, "Thread %d - Message %d", thread_num, i);
 
         // Calculate the send time
-        long long send_time = current_time_millis();
+        long long send_time = get_current_time_nanos();
 
         // Create a JSON object for the message
         json_object *json_msg = json_object_new_object();
 
-        // use unique id for each message based on timestamp
-        json_object_object_add(json_msg, "id", json_object_new_double(getMilliseconds()));
+        // use unique id for each message based time_millis
+        json_object_object_add(json_msg, "id", json_object_new_int64(get_current_time_nanos()));
         json_object_object_add(json_msg, "message", json_object_new_string(message));
         json_object_object_add(json_msg, "send_time", json_object_new_int64(send_time));
 
@@ -67,8 +55,8 @@ void *client_thread(void *thread_id) {
 }
 
 int main() {
-    double start_time = getMilliseconds();
-    printf("Start Time: %.3f milliseconds\n", start_time);
+    long long start_time = get_current_time_nanos();
+    printf("Start Time: %.3lld milliseconds\n", start_time);
 
     // Client threads
     pthread_t clients[NUM_THREADS];
@@ -83,6 +71,6 @@ int main() {
         pthread_join(clients[i], NULL);
     }
 
-    printf("Execution Time: %.3f milliseconds\n", getMilliseconds() - start_time);
+    printf("Execution Time: %.3lld milliseconds\n", get_current_time_nanos() - start_time);
     return 0;
 }
