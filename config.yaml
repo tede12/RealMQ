@@ -1,0 +1,18 @@
+# config.yaml
+
+# General settings
+general:
+  address: tcp://127.0.0.1:5555
+  num_threads: 100
+  num_messages: 1000
+  stats_filepath: "../server_stats"
+  use_json: false
+  save_interval_seconds: 10
+
+# Client settings
+client:
+  sleep_starting_time: 1000
+
+# Server settings
+server:
+  sleep_starting_time: 3000
