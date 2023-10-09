@@ -36,10 +36,10 @@ endif ()
 add_executable(main main.c common/utils.h)
 
 # client
-add_executable(realmq_client realmq_client.c common/utils.h common/config.h)
+add_executable(realmq_client realmq_client.c common/utils.h common/config.h common/logger.h)
 target_link_libraries(realmq_client ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES})
 
 # server
-add_executable(realmq_server realmq_server.c common/utils.h common/config.h)
+add_executable(realmq_server realmq_server.c common/utils.h common/config.h common/logger.h)
 target_link_libraries(realmq_server ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES})
 

@@ -10,10 +10,12 @@
 #include "common/utils.h"
 #include "common/config.h"
 #include "common/zhelper.h"
+#include "common/logger.h"
 #include <stdbool.h>
 
 // Global configuration
 Config config;
+Logger client_logger;
 
 // Flag to indicate if keyboard interruption has been received
 volatile bool interrupted = false;
@@ -22,7 +24,7 @@ volatile bool interrupted = false;
 void handle_interrupt(int signal) {
     if (signal == SIGINT) {
         interrupted = true;
-        printf("\nKeyboard interruption received (Ctrl+C)\n");
+        logger(LOG_LEVEL_INFO, "Keyboard interruption received (Ctrl+C)");
     }
     exit(0);
 }
@@ -34,7 +36,7 @@ json_object *json_messages = NULL; // Added to store all messages
 void handle_message(const char *message) {
     // Implement logic for handling received messages
     // In this example, we are just printing the message for demonstration purposes
-    printf("Received message: %s\n", message);
+    logger(LOG_LEVEL_INFO, "Received message: %s", message);
 }
 
 // Function for processing received JSON message and updating statistics
@@ -84,7 +86,7 @@ void *server_thread(void *args) {
         messages_received++;
     }
 
-    printf("Received messages: %d\n", messages_received);
+    logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
 
     zmq_close(socket);
     zmq_ctx_destroy(context);
@@ -102,7 +104,7 @@ void save_stats_to_file() {
     char *fullPath = (char *) malloc(totalLength);
 
     if (fullPath == NULL) {
-        fprintf(stderr, "Errore di allocazione della memoria.\n");
+        logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
         return;
     }
 
@@ -112,7 +114,7 @@ void save_stats_to_file() {
     free(fullPath); // Libera la memoria dopo l'uso
 
     if (file == NULL) {
-        fprintf(stderr, "Impossibile aprire il file per la scrittura.\n");
+        logger(LOG_LEVEL_ERROR, "Impossibile aprire il file per la scrittura.");
         return;
     }
 
@@ -150,7 +152,7 @@ void save_stats_to_file() {
 // Function for handling periodic statistics saving
 void *stats_saver_thread(void *args) {
     while (!interrupted) {
-        printf("Saving statistics...\n");
+        logger(LOG_LEVEL_INFO, "Saving statistics...");
 
         // Wait for the specified time before the next save
         sleep(config.save_interval_seconds);
@@ -163,10 +165,23 @@ void *stats_saver_thread(void *args) {
 
 int main() {
     // Load the configuration
+    logConfig logger_config = {
+            .show_timestamp = 1,
+            .show_logger_name = 1,
+            .log_to_console = 1,
+            .log_level = LOG_LEVEL_INFO
+    };
+
+    Logger_init("realmq_sever", &logger_config, &client_logger);
+
+
     if (read_config("../config.yaml", &config) != 0) {
-        fprintf(stderr, "Failed to read config.yaml\n");
+        logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
         return 1;
     }
+
+    // Print configuration
+    logger(LOG_LEVEL_INFO, get_configuration(config));
 
     // Initialize JSON statistics
     json_messages = json_object_new_array();
@@ -194,6 +209,7 @@ int main() {
 
     // Release the configuration
     release_config(&config);
+    release_logger();
 
     return 0;
 }

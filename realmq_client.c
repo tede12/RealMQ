@@ -6,10 +6,12 @@
 #include "common/utils.h"
 #include "common/config.h"
 #include "common/zhelper.h"
+#include "common/logger.h"
 #include <json-c/json.h>
 
 // Global configuration
 Config config;
+Logger client_logger;
 
 // Function executed by client threads
 void *client_thread(void *thread_id) {
@@ -44,7 +46,7 @@ void *client_thread(void *thread_id) {
         // Measure the arrival time
         zmq_recv(socket, message, sizeof(message), 0);
 
-        printf("Received message: %s\n", message);
+        logger(LOG_LEVEL_INFO, "Received message: %s", message);
 
         // timespec end_time = getCurrentTime();
 
@@ -58,14 +60,27 @@ void *client_thread(void *thread_id) {
 
 int main() {
     // Load the configuration
+    logConfig logger_config = {
+            .show_timestamp = 1,
+            .show_logger_name = 1,
+            .log_to_console = 1,
+            .log_level = LOG_LEVEL_INFO
+    };
+
+    Logger_init("realmq_client", &logger_config, &client_logger);
+
     if (read_config("../config.yaml", &config) != 0) {
-        fprintf(stderr, "Failed to read config.yaml\n");
+        logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
         return 1;
     }
 
+    // Print configuration
+    logger(LOG_LEVEL_INFO, get_configuration(config));
+
+
     // Print the initial configuration for the client
     timespec start_time = getCurrentTime();
-    printf("Start Time: %.3f\n", getCurrentTimeValue(&start_time));
+    logger(LOG_LEVEL_INFO, "Start Time: %.3f", getCurrentTimeValue(&start_time));
 
     // Client threads
     pthread_t clients[config.num_threads];
@@ -80,6 +95,12 @@ int main() {
         pthread_join(clients[i], NULL);
     }
 
-    printf("Execution Time: %.3f milliseconds\n", getElapsedTime(start_time, NULL));
+    logger(LOG_LEVEL_INFO, "Execution Time: %.3f milliseconds", getElapsedTime(start_time, NULL));
+
+
+    // Release the configuration
+    release_config(&config);
+    release_logger();
+
     return 0;
 }

@@ -151,6 +151,34 @@ void release_config(Config *config) {
     free(config->stats_filepath);
 }
 
+// Return a string representation of the configuration.
+char *get_configuration(Config config) {
+    char *configuration = malloc(1024);
+    if (!configuration) {
+        fprintf(stderr, "Failed to allocate memory.\n");
+        return NULL;
+    } else {
+        snprintf(configuration, 1024,
+                 "\n------------------------------------------------\nConfiguration:\n"
+                 "Address: %s\n"
+                 "Number of threads: %d\n"
+                 "Number of messages (x thread): %d\n"
+                 "Use JSON: %s\n"
+                 "Save interval: %d s\n"
+                 "Stats filepath: %s\n"
+                 "Client/Server sleep starting time: %d/%d ms\n------------------------------------------------\n\n",
+                 config.address,
+                 config.num_threads,
+                 config.num_messages,
+                 config.use_json ? "yes" : "no",
+                 config.save_interval_seconds,
+                 config.stats_filepath,
+                 config.client_action->sleep_starting_time, config.server_action->sleep_starting_time
+        );
+    }
+    return configuration;
+}
+
 
 //int main() {
 //    Config config;
