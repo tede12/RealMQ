@@ -63,6 +63,7 @@ int main() {
         return 1;
     }
 
+    // Print the initial configuration for the client
     timespec start_time = getCurrentTime();
     printf("Start Time: %.3f\n", getCurrentTimeValue(&start_time));
 
