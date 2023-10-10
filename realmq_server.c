@@ -168,6 +168,7 @@ int main() {
     logConfig logger_config = {
             .show_timestamp = 1,
             .show_logger_name = 1,
+            .show_thread_id = 1,
             .log_to_console = 1,
             .log_level = LOG_LEVEL_INFO
     };

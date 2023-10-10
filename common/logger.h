@@ -19,6 +19,7 @@ typedef enum {
 
 typedef struct {
     int show_timestamp;   // If true, show timestamp
+    int show_thread_id;   // If true, show thread id
     int show_logger_name; // If true, show logger name
     int log_to_console;   // If true, log to console otherwise log to syslog
     LogLevel log_level;   // Permit only messages with level <= log_level
@@ -90,7 +91,13 @@ void log_internal(int level, const char *format, va_list args) {
             break;
     }
 
-    snprintf(final_msg, sizeof(final_msg), "%s[%s]: %s", prefix, string_level, buffer);
+    char thread_id[18] = ""; // Default value is an empty string
+    if (global_logger.config.show_thread_id) {
+        snprintf(thread_id, sizeof(thread_id), "[%ld]", (long int)pthread_self());
+    }
+
+    // Create the final message
+    snprintf(final_msg, sizeof(final_msg), "%s[%s]%s: %s", prefix, string_level, thread_id, buffer);
 
     if (global_logger.config.log_to_console) {
         // Print to console
