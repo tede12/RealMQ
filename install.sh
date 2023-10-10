@@ -38,7 +38,7 @@ install_macos() {
   fi
 
   # Install the packages
-  for package in zeromq czmq json-c cmake make python; do
+  for package in zeromq czmq json-c libyaml cmake make python; do
     if brew list $package &>/dev/null; then
       echo "[INFO] $package already installed."
     else
@@ -55,7 +55,7 @@ install_debian_like() {
   sudo apt-get update
 
   # Install the packages
-  for package in libzmq3-dev libczmq-dev libjson-c-dev cmake make python3 python3-venv python3-pip; do
+  for package in libzmq3-dev libczmq-dev libjson-c-dev libyaml-dev cmake make python3 python3-venv python3-pip; do
     if dpkg -l | grep -q $package; then
       echo "[INFO] $package already installed."
     else

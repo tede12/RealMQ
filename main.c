@@ -1,18 +1,19 @@
-#include "common/utils.h"
+#include <stdio.h>
+#include <pthread.h>
 
+void* thread_function(void* arg) {
+    printf("Salve dal thread!\n");
+    return NULL;
+}
 
 int main() {
-//    time_t start_time = get_timestamp();
-//    long long start_time2 = get_current_time_millis();
-//    printf("Timestamp now: %ld, %lld\n", start_time, start_time2);
-//
-//    sleep(5);
-//
-//    time_t end_time = get_timestamp();
-//    long long end_time2 = get_current_time_millis();
-//    printf("Timestamp now: %ld, %lld\n", end_time, end_time2);
-//
-//    printf("Time difference: %.3f, %.3f\n", difftime(end_time, start_time), difftime(end_time2, start_time2) / 1000.0);
+    pthread_t thread_id;
 
+    printf("Creazione del thread...\n");
+    pthread_create(&thread_id, NULL, thread_function, NULL);
+
+    pthread_join(thread_id, NULL);
+
+    printf("Thread terminato.\n");
     return 0;
 }

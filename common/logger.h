@@ -108,6 +108,9 @@ void log_internal(int level, const char *format, va_list args) {
     if (level >= global_logger.config.log_level) {
         syslog(level, "%s", final_msg);
     }
+
+    // strdup() allocates memory using malloc() and needs to be freed
+    free(string_level);
 }
 
 void logger(LogLevel level, const char *format, ...) {
