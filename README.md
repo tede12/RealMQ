@@ -31,7 +31,15 @@ Performance is assessed using the following benchmarks:
 
 1. **Latency**: A bar chart comparing latency under different workloads (e.g., messages per second). It's crucial to see
    how
-   latency varies with workload intensity.
+   latency varies with workload intensity. In the context of real-time systems, understanding and optimizing latency is paramount for several reasons:
+    
+      - **Predictability and Consistency**: Real-time systems often require operations to be executed within a strict time frame. 
+      High or variable latency can lead to unpredictability, which is unacceptable in environments where timing is critical, such as financial services or emergency response systems.
+      - **Quality of Service (QoS)**: In messaging systems, the quality of service is often defined by how fast and reliably messages are delivered. 
+      Latency metrics, especially the **standard deviation** of latency, provide insights into the network's performance consistency. A low standard deviation indicates a reliable system with generally predictable latency, whereas a high standard deviation might signal intermittent network issues or potential bottlenecks.
+      - **Real-time Performance Insights**: The **95th percentile latency** is particularly important in real-time systems. It shows the maximum latency experienced by 95% of the messages, excluding outlying delays caused by exceptional conditions. This metric helps stakeholders understand the system's performance under normal conditions, ensuring that the vast majority of operations meet the required time constraints.
+      By focusing on these latency-related metrics, stakeholders can make informed decisions about potential optimizations, understand the real-world performance of the system, and ensure that it meets the stringent requirements of real-time operations.
+
 2. **Throughput**: A line graph illustrating messages handled per second by the original library vs. the real-time
    version over
    time.

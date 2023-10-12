@@ -17,7 +17,6 @@ Config config;
 Logger client_logger;
 
 
-
 // Variables for periodic statistics saving
 json_object *json_messages = NULL; // Added to store all messages
 
@@ -25,7 +24,7 @@ json_object *json_messages = NULL; // Added to store all messages
 void handle_message(const char *message) {
     // Implement logic for handling received messages
     // In this example, we are just printing the message for demonstration purposes
-    logger(LOG_LEVEL_INFO, "Received message: %s", message);
+//    logger(LOG_LEVEL_INFO, "Received message: %s", message);
 }
 
 // Function for processing received JSON message and updating statistics
@@ -61,7 +60,7 @@ void *server_thread(void *args) {
     int messages_received = 0; // Counter for received messages
 
     while (!interrupted) {
-        char message[512];
+        char message[config.message_size + 64];
         zmq_recv(socket, message, sizeof(message), 0);
         double recv_time = getCurrentTimeValue(NULL);
 
@@ -98,6 +97,8 @@ void save_stats_to_file() {
     }
 
     snprintf(fullPath, totalLength, "%s%s", config.stats_filepath, file_extension);
+
+    logger(LOG_LEVEL_INFO, "Saving statistics to file: %s", fullPath);
 
     FILE *file = fopen(fullPath, "w");
     free(fullPath); // Libera la memoria dopo l'uso
@@ -141,8 +142,6 @@ void save_stats_to_file() {
 // Function for handling periodic statistics saving
 void *stats_saver_thread(void *args) {
     while (!interrupted) {
-        logger(LOG_LEVEL_INFO, "Saving statistics...");
-
         // Wait for the specified time before the next save
         sleep(config.save_interval_seconds);
 

@@ -125,7 +125,7 @@ void *client_thread(void *thread_id) {
                     break;
                 }
 
-                s_sleep(interval_between_messages_us); // Wait for the specified time between messages
+//                s_sleep(interval_between_messages_us); // Wait for the specified time between messages
             }
 
         } else {

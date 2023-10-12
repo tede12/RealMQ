@@ -3,13 +3,13 @@
 # General settings
 general:
   address: tcp://127.0.0.1:5555
-  num_threads: 1
+  num_threads: 100
 
   # num_messages: total number of messages that will be sent by the client
-  num_messages: 100000
+  num_messages: 1000
 
   # message_size: size of the message in bytes that will be sent by the client (random ascii, avoid caching)
-  message_size: 1000
+  message_size: 1024
   stats_filepath: "../server_stats"
 
   # use_json: if true, the stats will be saved in json format, otherwise in csv format
