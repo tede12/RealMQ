@@ -11,23 +11,12 @@
 #include "common/config.h"
 #include "common/zhelper.h"
 #include "common/logger.h"
-#include <stdbool.h>
 
 // Global configuration
 Config config;
 Logger client_logger;
 
-// Flag to indicate if keyboard interruption has been received
-volatile bool interrupted = false;
 
-// Function for handling interruption
-void handle_interrupt(int signal) {
-    if (signal == SIGINT) {
-        interrupted = true;
-        logger(LOG_LEVEL_INFO, "Keyboard interruption received (Ctrl+C)");
-    }
-    exit(0);
-}
 
 // Variables for periodic statistics saving
 json_object *json_messages = NULL; // Added to store all messages

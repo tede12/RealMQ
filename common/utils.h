@@ -1,6 +1,24 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+// Flag to indicate if keyboard interruption has been received
+volatile sig_atomic_t interrupted = 0;
+
+/**
+ * @brief Handle the keyboard interruption (Ctrl+C)
+ * @param signal
+ */
+void handle_interrupt(int sig) {
+    (void)sig; // Avoid unused parameter warning
+    interrupted = 1;
+    printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
+}
+
 
 typedef struct timespec timespec;
 
@@ -68,7 +86,7 @@ double getCurrentTimeValue(timespec *ts) {
         ts = &localTs;
     }
 
-    double timeValue = (double)ts->tv_sec + (double)ts->tv_nsec / 1e9;
+    double timeValue = (double) ts->tv_sec + (double) ts->tv_nsec / 1e9;
     return timeValue;
 }
 
@@ -85,7 +103,7 @@ double getElapsedTime(timespec start, timespec *end) {
         localEnd = getCurrentTime();
         end = &localEnd;
     }
-    return (double)(end->tv_sec - start.tv_sec) + (double)(end->tv_nsec - start.tv_nsec) / 1e9;
+    return (double) (end->tv_sec - start.tv_sec) + (double) (end->tv_nsec - start.tv_nsec) / 1e9;
 }
 
 //int main() {

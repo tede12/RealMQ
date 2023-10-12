@@ -18,7 +18,10 @@ typedef struct Config {
     int num_threads;
     int num_messages;
     bool use_json;
+    bool use_msg_per_time;
+    int msg_per_minute;
     int save_interval_seconds;
+    int message_size;
     char *stats_filepath;
     ActionType *client_action;
     ActionType *server_action;
@@ -116,6 +119,14 @@ int read_config(const char *filename, Config *config) {
                 free(value);
             } else if (strcmp(key, "stats_filepath") == 0) {
                 config->stats_filepath = value;
+            } else if (strcmp(key, "use_msg_per_time") == 0) {
+                config->use_msg_per_time = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "msg_per_minute") == 0) {
+                config->msg_per_minute = convert_to_int(value);
+                free(value);
+            } else if (strcmp(key, "message_size") == 0) {
+                config->message_size = convert_to_int(value);
+                free(value);
             }
                 // CLIENT
             else if (strcmp(key, "sleep_starting_time") == 0) {
@@ -162,7 +173,8 @@ char *get_configuration(Config config) {
                  "\n------------------------------------------------\nConfiguration:\n"
                  "Address: %s\n"
                  "Number of threads: %d\n"
-                 "Number of messages (x thread): %d\n"
+                 "Number of messages (x thread): %d (size %d Bytes)\n"
+                 "Use messages per time: %s (%d msg/min)\n"
                  "Use JSON: %s\n"
                  "Save interval: %d s\n"
                  "Stats filepath: %s\n"
@@ -170,6 +182,8 @@ char *get_configuration(Config config) {
                  config.address,
                  config.num_threads,
                  config.num_messages,
+                 config.message_size,
+                 config.use_msg_per_time ? "yes" : "no", config.msg_per_minute,
                  config.use_json ? "yes" : "no",
                  config.save_interval_seconds,
                  config.stats_filepath,
