@@ -2,7 +2,7 @@
 
 # General settings
 general:
-  protocol: "tcp"
+  protocol: "udp"
   main_address: 127.0.0.1:5555
   responder_address: 127.0.0.1:5556
   num_threads: 100

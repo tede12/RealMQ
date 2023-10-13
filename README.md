@@ -90,6 +90,29 @@ git clone https://www.github.com/tede12/RealMQ
 chmod +x install.sh && ./install.sh
 ```
 
+### Compiler draft zmq for using UDP feature
+
+- **Linux version**
+
+    ```bash
+        sudo apt-get install libtool pkg-config build-essential autoconf automake
+        git clone https://github.com/zeromq/libzmq
+        cd libzmq
+        ./autogen.sh
+        ./configure --with-libsodium --enable-drafts=yes
+        make
+        sudo make install
+    ```
+
+- **MacOS version**
+    
+    ```bash
+        brew install qt@5 automake autoconf libtool pkg-config
+        git clone https://github.com/zeromq/libzmq
+        LDFLAGS="-L/opt/homebrew/opt/qt@5/lib" ./configure --disable-dependency-tracking --with-libsodium --enable-drafts=yes --without-documentation
+        make
+    ```
+
 ## Usage
 
 1. Compile the project using CMake:
