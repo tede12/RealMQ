@@ -2,13 +2,13 @@
 
 # General settings
 general:
-  protocol: "udp"
+  protocol: "tcp"
   main_address: 127.0.0.1:5555
   responder_address: 127.0.0.1:5556
-  num_threads: 100
+  num_threads: 1
 
   # num_messages: total number of messages that will be sent by the client
-  num_messages: 1000
+  num_messages: 100000
 
   # message_size: size of the message in bytes that will be sent by the client (random ascii, avoid caching)
   message_size: 1024

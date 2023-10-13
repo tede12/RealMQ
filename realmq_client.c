@@ -8,6 +8,7 @@
 #include "common/zhelper.h"
 #include "common/logger.h"
 
+#define REALMQ_VERSION
 #ifdef REALMQ_VERSION
 #include "common/qos.h"
 #include "common/message_queue.h"

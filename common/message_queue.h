@@ -5,7 +5,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define RESPONSE_TIMEOUT 5.0 // Define your timeout value here, in seconds
+#define RESPONSE_TIMEOUT 60.0 // Define your timeout value here, in seconds
 
 typedef struct {
     double id;

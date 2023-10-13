@@ -6,8 +6,6 @@
 #include <pthread.h>
 #include <unistd.h> // For sleep
 
-#define RESPONSE_TIMEOUT 5.0 // Define your timeout value here, in seconds
-
 // The flag to control the background thread's loop
 volatile bool keep_running = true;
 

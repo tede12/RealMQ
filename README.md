@@ -103,9 +103,10 @@ chmod +x install.sh && ./install.sh
         make
         sudo make install
     ```
+  After compiling if the command `pkg-config --cflags libzmq` shows `-I/usr/local/include -DZMQ_BUILD_DRAFT_API` then it is successfully compiled and draft api is enabled.
 
 - **MacOS version**
-    
+
     ```bash
         brew install qt@5 automake autoconf libtool pkg-config
         git clone https://github.com/zeromq/libzmq
