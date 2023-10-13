@@ -56,10 +56,12 @@ void *server_thread(void *args) {
     assert(rc == 0);  // Ensure the socket is bound successfully
     zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
 
+#ifdef REALMQ_VERSION
     // Responder socket
     void *responder = zmq_socket(context, ZMQ_REP);
     rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define responder_address in config
     assert(rc == 0);  // Ensure the socket is bound successfully
+#endif
 
     // Wait for the specified time before starting to receive messages
     s_sleep(config.server_action->sleep_starting_time);
@@ -83,6 +85,7 @@ void *server_thread(void *args) {
         // Extract the ID from the message
         json_object *json_msg = json_tokener_parse(message);
         if (json_msg) {
+#ifdef REALMQ_VERSION
             json_object *id_obj;
             if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
                 const char *id_str = json_object_get_string(id_obj);
@@ -90,6 +93,7 @@ void *server_thread(void *args) {
                 // Send the ID back as a response
                 zmq_send(responder, id_str, strlen(id_str), 0);
             }
+#endif
             json_object_put(json_msg);  // free json object memory
         }
     }
@@ -97,7 +101,9 @@ void *server_thread(void *args) {
     logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
 
     zmq_close(receiver);
+#ifdef REALMQ_VERSION
     zmq_close(responder);
+#endif
     zmq_ctx_destroy(context);
     return NULL;
 }

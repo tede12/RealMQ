@@ -7,8 +7,12 @@
 #include "common/config.h"
 #include "common/zhelper.h"
 #include "common/logger.h"
+
+#ifdef REALMQ_VERSION
 #include "common/qos.h"
 #include "common/message_queue.h"
+#endif
+
 #include <signal.h>
 #include <json-c/json.h>
 
@@ -75,11 +79,14 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 
     zmq_send(socket, json_str, strlen(json_str), 0);
 
+#ifdef REALMQ_VERSION
+
     logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
 
     // Enqueue the message after it's sent
     enqueue_message(message_id, send_time);
     return;
+#else
 
     // ----- this things are implemented in the message_queue -----
 
@@ -91,8 +98,11 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // timespec end_time = getCurrentTime();
 
     // received message...
+#endif
 
 }
+
+#ifdef REALMQ_VERSION
 
 // Function to be executed by the response handling thread
 void *response_handler(void *socket) {
@@ -110,6 +120,8 @@ void *response_handler(void *socket) {
     return NULL;
 }
 
+#endif
+
 // Function executed by client threads
 void *client_thread(void *thread_id) {
     int thread_num = *(int *) thread_id;
@@ -117,20 +129,24 @@ void *client_thread(void *thread_id) {
     void *socket = zmq_socket(context, get_zmq_type(CLIENT));
     zmq_connect(socket, get_address(MAIN_ADDRESS));
 
+#ifdef REALMQ_VERSION
     // Set a timeout for receive operations
     int timeout = 1000; // Timeout of 1000 milliseconds
     zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 
     // Set a timeout for sending operations (for heartbeats)
     zmq_setsockopt(socket, ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
+#endif
 
     // Wait for the specified time before starting to send messages
     s_sleep(config.client_action->sleep_starting_time);
 
     int messages_sent = 0;
     while (messages_sent < config.num_messages && !interrupted) {
+#ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
         send_heartbeat(socket);
+#endif
 
         if (config.use_msg_per_minute) {
             // Keep track of current time (for taking diff of a minute)
@@ -165,8 +181,10 @@ void *client_thread(void *thread_id) {
             messages_sent++;
         }
 
+#ifdef REALMQ_VERSION
         // After sending a batch of messages, check if the socket is still connected
         try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
+#endif
 
         // Check for interruption after sending a message
         if (interrupted) {
@@ -207,7 +225,7 @@ int main() {
     // Print configuration
     logger(LOG_LEVEL_INFO, get_configuration());
 
-
+#ifdef REALMQ_VERSION
     // Initialize message queue
     initialize_message_queue();
 
@@ -222,6 +240,7 @@ int main() {
         fprintf(stderr, "Error creating thread\n");
         return 1;
     }
+#endif
 
     // Print the initial configuration for the client
     timespec start_time = getCurrentTime();
@@ -242,8 +261,10 @@ int main() {
     logger(LOG_LEVEL_INFO, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
            getElapsedTime(start_time, NULL), config.server_action->sleep_starting_time);
 
+#ifdef REALMQ_VERSION
     // Finalize message queue
     finalize_message_queue();
+#endif
 
     // Release the configuration
     release_config();
