@@ -7,6 +7,7 @@
 #include "common/config.h"
 #include "common/zhelper.h"
 #include "common/logger.h"
+#include "common/qos.h"
 #include <signal.h>
 #include <json-c/json.h>
 
@@ -70,11 +71,9 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Send the JSON message to the server
     const char *json_str = json_object_to_json_string(json_msg);
 
-    printf("json_string: %s | current_len/len: %d/%lu\n", json_str, current_len, strlen(json_str));
-
     zmq_send(socket, json_str, strlen(json_str), 0);
 
-    // Measure the arrival time
+    // Check if the message was sent successfully
     zmq_recv(socket, message, sizeof(message), 0);
 
     logger(LOG_LEVEL_INFO, "Received message: %s", message);
@@ -96,17 +95,23 @@ void *client_thread(void *thread_id) {
     int timeout = 1000; // Timeout of 1000 milliseconds
     zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 
+    // Set a timeout for sending operations (for heartbeats)
+    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
+
     // Wait for the specified time before starting to send messages
     s_sleep(config.client_action->sleep_starting_time);
 
     int messages_sent = 0;
     while (messages_sent < config.num_messages && !interrupted) {
+        // Send a heartbeat before starting to send messages
+        send_heartbeat(socket);
+
         if (config.use_msg_per_time) {
             // Keep track of current time (for taking diff of a minute)
             timespec current_time = getCurrentTime();
 
             // Calculate the waiting time between messages in microseconds to not exceed messages per minute
-            int interval_between_messages_us = 60000000 / config.msg_per_minute; // 60 million microseconds in a minute
+//            int interval_between_messages_us = 60000000 / config.msg_per_minute; // 60 million microseconds in a minute
 
             for (int i = 0; i < config.msg_per_minute && messages_sent < config.num_messages && !interrupted; i++) {
                 // Calculate diff between current time and start time
@@ -125,13 +130,19 @@ void *client_thread(void *thread_id) {
                     break;
                 }
 
-//                s_sleep(interval_between_messages_us); // Wait for the specified time between messages
+                // Optionally, you can send a heartbeat at regular intervals here,
+                // e.g., by checking if (i % SOME_VALUE == 0)
+
+                // s_sleep(interval_between_messages_us); // Wait for the specified time between messages
             }
 
         } else {
             send_payload(socket, thread_num, messages_sent);
             messages_sent++;
         }
+
+        // After sending a batch of messages, check if the socket is still connected
+        try_reconnect(context, &socket, config.address);
 
         // Check for interruption after sending a message
         if (interrupted) {

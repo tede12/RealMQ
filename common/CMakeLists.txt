@@ -1,9 +1,10 @@
 set(COMMON_SOURCE
-    config.h
-    logger.h
-    utils.h
-    zhelper.h
-)
+        config.h
+        logger.h logger.c
+        utils.h
+        zhelper.h
+        qos.h qos.c
+        )
 
 # Create static library from sources
 add_library(common STATIC ${COMMON_SOURCE})

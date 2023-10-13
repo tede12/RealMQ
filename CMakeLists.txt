@@ -27,9 +27,15 @@ elseif (UNIX AND NOT APPLE)
     link_directories(${ZMQ_LIBRARY_DIRS} ${CZMQ_LIBRARY_DIRS} ${JSON-C_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
 endif ()
 
+# Source files that need to be compiled
+set(SOURCE_FILES
+        common/qos.c
+        common/logger.c
+        )
+
 # Executables
-add_executable(realmq_client realmq_client.c)
-add_executable(realmq_server realmq_server.c)
+add_executable(realmq_client realmq_client.c ${SOURCE_FILES})
+add_executable(realmq_server realmq_server.c ${SOURCE_FILES})
 
 # Include common files
 include_directories(common)
