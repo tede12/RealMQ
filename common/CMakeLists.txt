@@ -1,9 +1,10 @@
 set(COMMON_SOURCE
-        config.h
+        config.h config.c
         logger.h logger.c
         utils.h
         zhelper.h
         qos.h qos.c
+        message_queue.h message_queue.c
         )
 
 # Create static library from sources

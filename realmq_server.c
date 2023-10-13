@@ -13,8 +13,9 @@
 #include "common/logger.h"
 
 // Global configuration
-Config config;
 Logger client_logger;
+// Get the date + time for the filename
+char *date_time = NULL;
 
 
 // Variables for periodic statistics saving
@@ -50,9 +51,15 @@ void *server_thread(void *args) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
     void *context = zmq_ctx_new();
-    void *socket = zmq_socket(context, ZMQ_SUB);
-    zmq_bind(socket, config.address);
-    zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0);
+    void *receiver = zmq_socket(context, get_zmq_type(SERVER));
+    int rc = zmq_bind(receiver, get_address(MAIN_ADDRESS));  // Make sure to define main_address in config
+    assert(rc == 0);  // Ensure the socket is bound successfully
+    zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
+
+    // Responder socket
+    void *responder = zmq_socket(context, ZMQ_REP);
+    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define responder_address in config
+    assert(rc == 0);  // Ensure the socket is bound successfully
 
     // Wait for the specified time before starting to receive messages
     s_sleep(config.server_action->sleep_starting_time);
@@ -61,7 +68,7 @@ void *server_thread(void *args) {
 
     while (!interrupted) {
         char message[config.message_size + 64];
-        zmq_recv(socket, message, sizeof(message), 0);
+        zmq_recv(receiver, message, sizeof(message), 0);
         double recv_time = getCurrentTimeValue(NULL);
 
         // Process the received message
@@ -72,11 +79,25 @@ void *server_thread(void *args) {
 
         // Increment the received messages counter
         messages_received++;
+
+        // Extract the ID from the message
+        json_object *json_msg = json_tokener_parse(message);
+        if (json_msg) {
+            json_object *id_obj;
+            if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
+                const char *id_str = json_object_get_string(id_obj);
+
+                // Send the ID back as a response
+                zmq_send(responder, id_str, strlen(id_str), 0);
+            }
+            json_object_put(json_msg);  // free json object memory
+        }
     }
 
     logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
 
-    zmq_close(socket);
+    zmq_close(receiver);
+    zmq_close(responder);
     zmq_ctx_destroy(context);
     return NULL;
 }
@@ -87,21 +108,47 @@ void save_stats_to_file() {
         return;
     }
 
-    char *file_extension = config.use_json ? ".json" : ".csv";
-    unsigned int totalLength = strlen(config.stats_filepath) + strlen(file_extension) + 1; // +1 per il terminatore '\0'
-    char *fullPath = (char *) malloc(totalLength);
+    // Generate one unique date time for each run
+    if (date_time == NULL) {
+        // Get the date + time for the filename
+        date_time = malloc(20 * sizeof(char));
+        if (date_time == NULL) {
+            logger(LOG_LEVEL_ERROR, "Allocation error for date_time variable.");
+            return;
+        }
+        date_time = get_current_date_time();
+    }
+
+    // Get the file extension
+    char *file_extension = config.use_json ? ".json" : ".csv";  // Added the dot (.) before the extensions
+
+    // Calculate the total length of the final string
+    // Lengths of the folder path, date_time, file extension, and additional characters
+    // ("/", "_result.", and the null terminator)
+    unsigned int totalLength =
+            strlen(config.stats_folder_path) + strlen(date_time) + strlen("_result") +
+            strlen(file_extension) + 2;  // +2 for the '/' and the null terminator
+
+    // Allocate memory for the full file path
+    char *fullPath = (char *) malloc(totalLength * sizeof(char));
 
     if (fullPath == NULL) {
         logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
         return;
     }
 
-    snprintf(fullPath, totalLength, "%s%s", config.stats_filepath, file_extension);
+    // Construct the full file path
+    snprintf(fullPath, totalLength, "%s/%s_result%s", config.stats_folder_path, date_time, file_extension);
+
+    // Extract the folder path
+    char *folder = strdup(fullPath); // Duplicate fullPath because dirname can modify the input argument
+    char *dir = dirname(folder);
+    create_if_not_exist_folder(dir);
 
     logger(LOG_LEVEL_INFO, "Saving statistics to file: %s", fullPath);
 
     FILE *file = fopen(fullPath, "w");
-    free(fullPath); // Libera la memoria dopo l'uso
+    free(fullPath);
 
     if (file == NULL) {
         logger(LOG_LEVEL_ERROR, "Impossibile aprire il file per la scrittura.");
@@ -122,7 +169,7 @@ void save_stats_to_file() {
         fprintf(file, "id,num,diff\n");
 
         unsigned long array_len = json_object_array_length(json_messages);
-        for (int i = 0; i < array_len; i++) {
+        for (unsigned int i = 0; i < array_len; i++) {
             json_object *json_msg = json_object_array_get_idx(json_messages, i);
 
             double diff = json_object_get_double(json_object_object_get(json_msg, "recv_time")) -
@@ -164,13 +211,13 @@ int main() {
     Logger_init("realmq_sever", &logger_config, &client_logger);
 
 
-    if (read_config("../config.yaml", &config) != 0) {
+    if (read_config("../config.yaml") != 0) {
         logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
         return 1;
     }
 
     // Print configuration
-    logger(LOG_LEVEL_INFO, get_configuration(config));
+    logger(LOG_LEVEL_INFO, get_configuration());
 
     // Initialize JSON statistics
     json_messages = json_object_new_array();
@@ -197,7 +244,7 @@ int main() {
     json_object_put(json_messages);
 
     // Release the configuration
-    release_config(&config);
+    release_config();
     release_logger();
 
     return 0;

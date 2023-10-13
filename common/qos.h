@@ -7,9 +7,8 @@
 #include <time.h>
 
 void send_heartbeat(void *socket);
-bool receive_heartbeat(void *socket);
-void client_connection_manager(void *context, const char *connection_string);
-void try_reconnect(void *context, void **socket, const char *connection_string);
+
+void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type);
 
 
 #endif // QOS_H

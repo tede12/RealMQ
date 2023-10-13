@@ -2,13 +2,16 @@ cmake_minimum_required(VERSION 3.16.3)  # 3.16.3 is the max version supported by
 project(RealMQ C)
 
 set(CMAKE_C_STANDARD 11)
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
 
 # Find ZeroMQ, CZMQ, JSON-C, libyaml, and Threads
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
 
 pkg_check_modules(ZMQ REQUIRED libzmq)
+# Required for testing DGRAM sockets (UDP) that are not yet supported in stable releases only in draft releases
+add_definitions(-DZMQ_BUILD_DRAFT_API)
+
 pkg_check_modules(CZMQ REQUIRED libczmq)
 pkg_check_modules(JSON-C REQUIRED json-c)
 pkg_check_modules(YAML REQUIRED yaml-0.1)
@@ -31,6 +34,8 @@ endif ()
 set(SOURCE_FILES
         common/qos.c
         common/logger.c
+        common/message_queue.c
+        common/config.c
         )
 
 # Executables

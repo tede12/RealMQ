@@ -11,11 +11,11 @@
 
 typedef enum {
     LOG_LEVEL_DEBUG = 0,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_WARN,
-    LOG_LEVEL_ERROR,
-    LOG_LEVEL_FATAL,
-    LOG_LEVEL_NONE
+    LOG_LEVEL_INFO = 1,
+    LOG_LEVEL_WARN = 2,
+    LOG_LEVEL_ERROR = 3,
+    LOG_LEVEL_FATAL = 4,
+    LOG_LEVEL_NONE = 5
 } LogLevel;
 
 typedef struct {
@@ -37,7 +37,9 @@ extern Logger global_logger;
 typedef struct Logger loggerType;
 
 void logger(LogLevel level, const char *format, ...);
+
 void Logger_init(const char *name, logConfig *config, Logger *my_logger);
+
 void release_logger();
 
 #endif //REALMQ_LOGGER_H

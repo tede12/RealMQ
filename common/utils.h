@@ -5,6 +5,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <libgen.h>
 
 // Flag to indicate if keyboard interruption has been received
 volatile sig_atomic_t interrupted = 0;
@@ -14,9 +16,21 @@ volatile sig_atomic_t interrupted = 0;
  * @param signal
  */
 void handle_interrupt(int sig) {
-    (void)sig; // Avoid unused parameter warning
+    (void) sig; // Avoid unused parameter warning
     interrupted = 1;
     printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
+}
+
+/**
+ * @param folder_path
+ * @return
+ */
+char *create_if_not_exist_folder(char *folder_path) {
+    struct stat st = {0};
+    if (stat(folder_path, &st) == -1) {
+        mkdir(folder_path, 0700);
+    }
+    return folder_path;
 }
 
 
@@ -32,6 +46,22 @@ time_t get_timestamp() {
     time_t start_time;
     time(&start_time);
     return start_time;
+}
+
+/**
+ * @brief Get the current date and time
+ * @return char*
+ */
+char *get_current_date_time() {
+    time_t rawtime;
+    struct tm *timeinfo;
+    char *buffer = (char *) malloc(80 * sizeof(char));
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(buffer, 80, "%d_%m_%Y_%I_%M_%S", timeinfo);
+    return buffer;
 }
 
 
@@ -106,18 +136,17 @@ double getElapsedTime(timespec start, timespec *end) {
     return (double) (end->tv_sec - start.tv_sec) + (double) (end->tv_nsec - start.tv_nsec) / 1e9;
 }
 
-//int main() {
-//    time_t start_time = get_timestamp();
-//    long long start_time2 = get_current_time_nanos();
-//    printf("Timestamp now: %ld, %lld\n", start_time, start_time2);
-//
-//    sleep(5);
-//
-//    time_t end_time = get_timestamp();
-//    long long end_time2 = get_current_time_nanos();
-//    printf("Timestamp now: %ld, %lld\n", end_time, end_time2);
-//
-//    printf("Time difference: %.3f, %.3f\n", difftime(end_time, start_time), difftime(end_time2, start_time2) / 1000.0);
-//
-//    return 0;
-//}
+/**
+ * Example of usage:
+    time_t start_time = get_timestamp();
+    long long start_time2 = get_current_time_nanos();
+    printf("Timestamp now: %ld, %lld\n", start_time, start_time2);
+
+    sleep(5);
+
+    time_t end_time = get_timestamp();
+    long long end_time2 = get_current_time_nanos();
+    printf("Timestamp now: %ld, %lld\n", end_time, end_time2);
+
+    printf("Time difference: %.3f, %.3f\n", difftime(end_time, start_time), difftime(end_time2, start_time2) / 1000.0);
+*/

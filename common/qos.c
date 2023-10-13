@@ -29,12 +29,12 @@ void send_heartbeat(void *socket) {
         last_connection_time = time(NULL);
     } else {
         // Log that the heartbeat was not sent
-        logger(LOG_LEVEL_DEBUG, "Heartbeat not sent");
+//        logger(LOG_LEVEL_DEBUG, "Heartbeat not sent");
     }
 }
 
 // Helper function to handle reconnection
-void try_reconnect(void *context, void **socket, const char *connection_string) {
+void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type) {
     // Check the status of the socket
     int socket_status;
     size_t socket_status_size = sizeof(socket_status);
@@ -48,7 +48,7 @@ void try_reconnect(void *context, void **socket, const char *connection_string) 
         zmq_close(*socket);
 
         // Create a new socket
-        *socket = zmq_socket(context, ZMQ_REQ);  // ZMQ_REQ is used for this example; adjust as needed
+        *socket = zmq_socket(context, socket_type);
 
         // Attempt to reconnect the socket
         if (zmq_connect(*socket, connection_string) == 0) {
@@ -58,6 +58,6 @@ void try_reconnect(void *context, void **socket, const char *connection_string) 
         }
     } else {
         // Connection is OK
-        logger(LOG_LEVEL_DEBUG, "Connection is active, no action needed");
+//        logger(LOG_LEVEL_DEBUG, "Connection is active, no action needed");
     }
 }

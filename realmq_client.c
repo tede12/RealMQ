@@ -8,11 +8,11 @@
 #include "common/zhelper.h"
 #include "common/logger.h"
 #include "common/qos.h"
+#include "common/message_queue.h"
 #include <signal.h>
 #include <json-c/json.h>
 
 // Global configuration
-Config config;
 Logger client_logger;
 
 // Function that returns a random string of the given size
@@ -44,8 +44,10 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Create a JSON object for the message
     json_object *json_msg = json_object_new_object();
 
+    double message_id = getCurrentTimeValue(NULL);
+
     // use unique id for each message based time_millis
-    json_object_object_add(json_msg, "id", json_object_new_double(getCurrentTimeValue(NULL)));
+    json_object_object_add(json_msg, "id", json_object_new_double(message_id));
     json_object_object_add(json_msg, "message", json_object_new_string(message));
     json_object_object_add(json_msg, "send_time", json_object_new_double(getCurrentTimeValue(&send_time)));
 
@@ -73,6 +75,14 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 
     zmq_send(socket, json_str, strlen(json_str), 0);
 
+    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
+
+    // Enqueue the message after it's sent
+    enqueue_message(message_id, send_time);
+    return;
+
+    // ----- this things are implemented in the message_queue -----
+
     // Check if the message was sent successfully
     zmq_recv(socket, message, sizeof(message), 0);
 
@@ -84,12 +94,28 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 
 }
 
+// Function to be executed by the response handling thread
+void *response_handler(void *socket) {
+    // TODO: need to check the message payload for response (64 should be enough anyway)
+    int recv_len = 64;
+    char response[recv_len];
+
+    while (!interrupted) {
+        if (zmq_recv(socket, response, recv_len, 0) > 0) {
+            double id = atof(response);
+            dequeue_message(id);
+            logger(LOG_LEVEL_INFO, "Received response: %s", response);
+        }
+    }
+    return NULL;
+}
+
 // Function executed by client threads
 void *client_thread(void *thread_id) {
     int thread_num = *(int *) thread_id;
     void *context = zmq_ctx_new();
-    void *socket = zmq_socket(context, ZMQ_PUB);
-    zmq_connect(socket, config.address);
+    void *socket = zmq_socket(context, get_zmq_type(CLIENT));
+    zmq_connect(socket, get_address(MAIN_ADDRESS));
 
     // Set a timeout for receive operations
     int timeout = 1000; // Timeout of 1000 milliseconds
@@ -106,7 +132,7 @@ void *client_thread(void *thread_id) {
         // Send a heartbeat before starting to send messages
         send_heartbeat(socket);
 
-        if (config.use_msg_per_time) {
+        if (config.use_msg_per_minute) {
             // Keep track of current time (for taking diff of a minute)
             timespec current_time = getCurrentTime();
 
@@ -130,9 +156,7 @@ void *client_thread(void *thread_id) {
                     break;
                 }
 
-                // Optionally, you can send a heartbeat at regular intervals here,
-                // e.g., by checking if (i % SOME_VALUE == 0)
-
+                // TODO: maybe is better to check for heartbeat after sending a batch of messages (i % SOME_VALUE == 0)
                 // s_sleep(interval_between_messages_us); // Wait for the specified time between messages
             }
 
@@ -142,7 +166,7 @@ void *client_thread(void *thread_id) {
         }
 
         // After sending a batch of messages, check if the socket is still connected
-        try_reconnect(context, &socket, config.address);
+        try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
 
         // Check for interruption after sending a message
         if (interrupted) {
@@ -154,7 +178,6 @@ void *client_thread(void *thread_id) {
     zmq_close(socket);
     zmq_ctx_destroy(context);
 
-    printf("\n\n\n\n\nClosing with messages sent: %d, interrupt: %d\n", messages_sent, interrupted);
     return NULL;
 }
 
@@ -176,14 +199,29 @@ int main() {
 
     Logger_init("realmq_client", &logger_config, &client_logger);
 
-    if (read_config("../config.yaml", &config) != 0) {
+    if (read_config("../config.yaml") != 0) {
         logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
         return 1;
     }
 
     // Print configuration
-    logger(LOG_LEVEL_INFO, get_configuration(config));
+    logger(LOG_LEVEL_INFO, get_configuration());
 
+
+    // Initialize message queue
+    initialize_message_queue();
+
+    // Initialize the response handling thread
+    void *response_context = zmq_ctx_new();
+    void *response_socket = zmq_socket(response_context, ZMQ_SUB);
+    zmq_connect(response_socket, get_address(RESPONDER));
+
+    // Subscribe to all messages
+    pthread_t response_thread;
+    if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
+        fprintf(stderr, "Error creating thread\n");
+        return 1;
+    }
 
     // Print the initial configuration for the client
     timespec start_time = getCurrentTime();
@@ -196,17 +234,19 @@ int main() {
         thread_ids[i] = i;
         pthread_create(&clients[i], NULL, client_thread, &thread_ids[i]);
     }
-
     // Wait for client threads to finish
     for (int i = 0; i < config.num_threads; i++) {
         pthread_join(clients[i], NULL);
     }
 
-    logger(LOG_LEVEL_INFO, "Execution Time: %.3f milliseconds", getElapsedTime(start_time, NULL));
+    logger(LOG_LEVEL_INFO, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
+           getElapsedTime(start_time, NULL), config.server_action->sleep_starting_time);
 
+    // Finalize message queue
+    finalize_message_queue();
 
     // Release the configuration
-    release_config(&config);
+    release_config();
     release_logger();
 
     return 0;
