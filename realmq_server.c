@@ -52,14 +52,17 @@ void *server_thread(void *args) {
 
     void *context = zmq_ctx_new();
     void *receiver = zmq_socket(context, get_zmq_type(SERVER));
-    int rc = zmq_bind(receiver, get_address(MAIN_ADDRESS));  // Make sure to define main_address in config
+    int rc = zmq_bind(receiver, get_address(MAIN_ADDRESS));  // Make sure to define MAIN_ADDRESS in config
     assert(rc == 0);  // Ensure the socket is bound successfully
     zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
+
+    // Set a timeout for zmq_recv
+    zmq_setsockopt(receiver, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 
 #ifdef REALMQ_VERSION
     // Responder socket
     void *responder = zmq_socket(context, ZMQ_REP);
-    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define responder_address in config
+    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define RESPONDER in config
     assert(rc == 0);  // Ensure the socket is bound successfully
 #endif
 
@@ -70,7 +73,11 @@ void *server_thread(void *args) {
 
     while (!interrupted) {
         char message[config.message_size + 64];
-        zmq_recv(receiver, message, sizeof(message), 0);
+        int size = zmq_recv(receiver, message, sizeof(message), 0); // zmq_recv will return after timeout if no message
+        if (size == -1 && errno == EAGAIN) {    // this is needed for handling timeout
+            // In this case no message received
+            continue;
+        }
         double recv_time = getCurrentTimeValue(NULL);
 
         // Process the received message
@@ -105,6 +112,9 @@ void *server_thread(void *args) {
     zmq_close(responder);
 #endif
     zmq_ctx_destroy(context);
+
+    if (interrupted)
+        logger(LOG_LEVEL_INFO, "***Exiting server thread.");
     return NULL;
 }
 
@@ -201,6 +211,8 @@ void *stats_saver_thread(void *args) {
         // Save statistics to a file
         save_stats_to_file();
     }
+    if (interrupted)
+        logger(LOG_LEVEL_INFO, "***Exiting stats saver thread.");
     return NULL;
 }
 

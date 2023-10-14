@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h> // For sleep
+#include "logger.h"
+#include "utils.h"
 
 // The flag to control the background thread's loop
 volatile bool keep_running = true;
@@ -108,16 +110,16 @@ void dequeue_message(double id) {
 }
 
 void *check_queue_and_process_responses(void *args) {
-    while (keep_running) {
+    while (keep_running && !interrupted) {
         pthread_mutex_lock(&queue_mutex);
 
         int i = 0;
-        while (i < queue_size) {
+        while (i < queue_size && keep_running && !interrupted) {
             struct timespec current_time;
             clock_gettime(CLOCK_REALTIME, &current_time);
 
-            double time_diff = (current_time.tv_sec - message_queue[i].send_time.tv_sec) +
-                               (current_time.tv_nsec - message_queue[i].send_time.tv_nsec) / 1E9;
+            double time_diff = (double) (current_time.tv_sec - message_queue[i].send_time.tv_sec) +
+                               (double) (current_time.tv_nsec - message_queue[i].send_time.tv_nsec) / 1E9;
 
             if (time_diff > RESPONSE_TIMEOUT) {
                 handle_timeout(&message_queue[i]); // Pass the address of message_queue[i] here
@@ -130,6 +132,10 @@ void *check_queue_and_process_responses(void *args) {
 
         pthread_mutex_unlock(&queue_mutex);
         sleep(1);
+    }
+
+    if (interrupted) {
+        logger(LOG_LEVEL_INFO, "***Exiting message queue thread.");
     }
 
     return NULL;

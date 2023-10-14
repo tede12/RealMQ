@@ -29,6 +29,7 @@ typedef struct Config {
     int save_interval_seconds;
     int message_size;
     char *stats_folder_path;
+    int signal_msg_timeout;
     ActionType *client_action;
     ActionType *server_action;
 } Config;

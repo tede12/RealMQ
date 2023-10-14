@@ -149,7 +149,7 @@ int read_config(const char *filename) {
                 yaml_event_delete(&event);
                 continue;
             }
-
+            // Remember to free Integer values
             if (strcmp(key, "main_address") == 0) {
                 config.main_address = value;
             } else if (strcmp(key, "responder_address") == 0) {
@@ -178,6 +178,9 @@ int read_config(const char *filename) {
                 free(value);
             } else if (strcmp(key, "protocol") == 0) {
                 config.protocol = value;
+            } else if (strcmp(key, "signal_msg_timeout") == 0) {
+                config.signal_msg_timeout = convert_to_int(value);
+                free(value);
             }
                 // CLIENT
             else if (strcmp(key, "sleep_starting_time") == 0) {
@@ -209,6 +212,7 @@ int read_config(const char *filename) {
  * @param config The configuration struct.
  */
 void release_config() {
+    // Only need to free the Strings, the rest is allocated statically
     free(config.main_address);
     free(config.responder_address);
     free(config.stats_folder_path);

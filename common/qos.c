@@ -3,6 +3,7 @@
 #include <zmq.h>
 #include <string.h>
 #include <unistd.h>  // Provides access to the POSIX operating system API
+#include "config.h"
 
 #define HEARTBEAT_INTERVAL 10  // Heartbeat interval in seconds
 
@@ -53,6 +54,9 @@ void try_reconnect(void *context, void **socket, const char *connection_string, 
         // Attempt to reconnect the socket
         if (zmq_connect(*socket, connection_string) == 0) {
             logger(LOG_LEVEL_INFO, "Reconnected successfully");
+            // Set a timeout for receive operations
+            zmq_setsockopt(socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+
         } else {
             logger(LOG_LEVEL_ERROR, "Failed to reconnect: %s", zmq_strerror(errno));
         }

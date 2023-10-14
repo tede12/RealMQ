@@ -36,6 +36,7 @@ set(SOURCE_FILES
         common/logger.c
         common/message_queue.c
         common/config.c
+        common/utils.c
         )
 
 # Executables

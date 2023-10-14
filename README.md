@@ -109,9 +109,15 @@ chmod +x install.sh && ./install.sh
 
     ```bash
         brew install qt@5 automake autoconf libtool pkg-config
+        cd # In this example we compile in the home directory (if you want to change the directory, you must change the path in the CMakelists.txt file)
         git clone https://github.com/zeromq/libzmq
         LDFLAGS="-L/opt/homebrew/opt/qt@5/lib" ./configure --disable-dependency-tracking --with-libsodium --enable-drafts=yes --without-documentation
         make
+        sudo make install
+    ```
+    After compiling if the program do not find the DYLD_LIBRARY_PATH then you must add it to the path:
+    ```bash
+        export DYLD_LIBRARY_PATH=~/libzmq/src/.libs:$DYLD_LIBRARY_PATH
     ```
 
 ## Usage

@@ -10,8 +10,10 @@
 
 #define REALMQ_VERSION
 #ifdef REALMQ_VERSION
+
 #include "common/qos.h"
 #include "common/message_queue.h"
+
 #endif
 
 #include <signal.h>
@@ -125,18 +127,19 @@ void *response_handler(void *socket) {
 
 // Function executed by client threads
 void *client_thread(void *thread_id) {
+    signal(SIGINT, handle_interrupt); // Register the interruption handling function
+
     int thread_num = *(int *) thread_id;
     void *context = zmq_ctx_new();
     void *socket = zmq_socket(context, get_zmq_type(CLIENT));
     zmq_connect(socket, get_address(MAIN_ADDRESS));
 
-#ifdef REALMQ_VERSION
     // Set a timeout for receive operations
-    int timeout = 1000; // Timeout of 1000 milliseconds
-    zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    zmq_setsockopt(socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 
+#ifdef REALMQ_VERSION
     // Set a timeout for sending operations (for heartbeats)
-    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
+    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 #endif
 
     // Wait for the specified time before starting to send messages
@@ -169,7 +172,7 @@ void *client_thread(void *thread_id) {
 
                 // Check for interruption before sleeping
                 if (interrupted) {
-                    printf("Interrupted\n");
+                    logger(LOG_LEVEL_INFO, "***Exiting client thread.");
                     break;
                 }
 
@@ -187,26 +190,18 @@ void *client_thread(void *thread_id) {
         try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
 #endif
 
-        // Check for interruption after sending a message
-        if (interrupted) {
-            printf("Interrupted\n");
-            break;
-        }
     }
 
     zmq_close(socket);
     zmq_ctx_destroy(context);
 
+    if (interrupted)
+        logger(LOG_LEVEL_INFO, "***Exiting client thread.");
+
     return NULL;
 }
 
 int main() {
-    // Register the interruption handling function
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    act.sa_handler = handle_interrupt;
-    sigaction(SIGINT, &act, NULL);
-
     // Load the configuration
     logConfig logger_config = {
             .show_timestamp = 1,
@@ -234,6 +229,8 @@ int main() {
     void *response_context = zmq_ctx_new();
     void *response_socket = zmq_socket(response_context, ZMQ_SUB);
     zmq_connect(response_socket, get_address(RESPONDER));
+    // Set timeout for receive operations
+    zmq_setsockopt(response_socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 
     // Subscribe to all messages
     pthread_t response_thread;

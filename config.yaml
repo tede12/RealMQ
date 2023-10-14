@@ -23,6 +23,9 @@ general:
   # msg_per_minute: number of messages that should send in a minute (with use_msg_per_minute = true)
   msg_per_minute: 1000
 
+  # signal_msg_timeout: timeout in milliseconds for the signal message (used to check if the server and client are alive)
+  signal_msg_timeout: 500
+
 # Client settings
 client:
   sleep_starting_time: 1000
