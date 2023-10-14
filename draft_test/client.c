@@ -4,9 +4,24 @@
 #include <stdio.h>
 #include <unistd.h> // for sleep()
 
-int main(void) {
-    int rc;
+// Function to send a message with a group using zmq_send-like parameters
+int zmq_send_group(void *socket, const char *group, const char *msg, int flags) {
+    zmq_msg_t message;
+    zmq_msg_init_size(&message, strlen(msg));
+    memcpy(zmq_msg_data(&message), msg, strlen(msg));
 
+    int rc = zmq_msg_set_group(&message, group);
+    if (rc != 0) {
+        zmq_msg_close(&message);
+        return rc;
+    }
+
+    rc = zmq_msg_send(&message, socket, flags);
+    zmq_msg_close(&message);
+    return rc;
+}
+
+int main(void) {
     void *ctx = zmq_ctx_new();
     assert(ctx);
 
@@ -15,21 +30,15 @@ int main(void) {
     assert(zmq_connect(radio, "udp://127.0.0.1:5556") == 0);
 
     while (1) {
+        const char *group = "GRP";
         const char *msg = "Hello";
-        zmq_msg_t message;
-        zmq_msg_init_size(&message, strlen(msg));
-        memcpy(zmq_msg_data(&message), msg, strlen(msg));
-        rc = zmq_msg_set_group(&message, "GRP");
-        assert(rc == 0);
 
-        rc = zmq_msg_send(&message, radio, 0);
+        int rc = zmq_send_group(radio, group, msg, 0);
         if (rc == -1) {
             printf("Error in sending message\n");
-            zmq_msg_close(&message);
             break;
         }
 
-        zmq_msg_close(&message);
         sleep(1); // Send a message every second
     }
 
