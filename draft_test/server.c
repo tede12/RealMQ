@@ -30,19 +30,17 @@ int main(void) {
     assert(receiver);  // Verify that the socket creation was successful.
 
     // Bind the socket to the specified local address and port. In this case, it will listen on all network interfaces at port 5556.
-    int rc = zmq_bind(receiver, "udp://*:5556");
-    assert(rc == 0);  // Verify that the binding was successful.
+    assert(zmq_bind(receiver, "udp://127.0.0.1:5556") == 0);  // Verify that the binding was successful.
 
     // Infinite loop to receive messages.
     while (!interrupted) {
         char address[256];  // Buffer for the address of the incoming message
         char message[256];  // Buffer for the body of the incoming message
-        rc = zmq_recv(receiver, address, 255, 0);
-        assert(rc != -1);
-        address[rc] = '\0';  // Ensure it is null-terminated
-        rc = zmq_recv(receiver, message, 255, 0);
-        assert(rc != -1);
-        message[rc] = '\0';  // Ensure it is null-terminated
+
+        // Receive the address and then the message body.
+        assert(zmq_recv(receiver, address, 255, 0) != -1);
+
+        assert(zmq_recv(receiver, message, 255, 0) != -1);
 
         // Print the received message.
         printf("Received: %s\n", message);
@@ -50,10 +48,8 @@ int main(void) {
         const char *response = "Yes, there is!";  // The response that will be sent back.
 
         // Send the address first and then the response message.
-        rc = zmq_send(receiver, address, strlen(address), ZMQ_SNDMORE);
-        assert(rc != -1);
-        rc = zmq_send(receiver, response, strlen(response), 0);
-        assert(rc != -1);
+        assert(zmq_send(receiver, address, strlen(address), ZMQ_SNDMORE) != -1);
+        assert(zmq_send(receiver, response, strlen(response), 0) != -1);
     }
 
     // Close the socket and destroy the ZeroMQ context. In a real application, these calls are important for proper resource management.

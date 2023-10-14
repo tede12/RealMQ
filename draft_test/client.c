@@ -32,7 +32,7 @@ int main(void) {
     assert(sender);  // Ensure the socket was successfully created.
 
     // Bind the socket to the local address and port. The client will listen on port 5557.
-    int rc = zmq_bind(sender, "udp://*:5557");
+    int rc = zmq_bind(sender, "udp://127.0.0.1:5555");
     assert(rc == 0);  // Ensure the binding was successful.
 
     // Prepare the message and the destination address.
@@ -41,10 +41,8 @@ int main(void) {
 
     while (!interrupted) {
         // First, send the address and then the message body to the server.
-        rc = zmq_send(sender, address, strlen(address), ZMQ_SNDMORE);
-        assert(rc != -1);
-        rc = zmq_send(sender, msg, strlen(msg), 0);
-        assert(rc != -1);
+        assert(zmq_send(sender, address, strlen(address), ZMQ_SNDMORE) != -1);
+        assert(zmq_send(sender, msg, strlen(msg), 0) != -1);
 
         // Prepare to receive a reply from the server.
         char reply_addr[256];  // Buffer for the reply address
