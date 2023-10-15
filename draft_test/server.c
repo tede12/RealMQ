@@ -12,6 +12,9 @@ int main(void) {
 
     void *dish = zmq_socket(ctx, ZMQ_DISH);
     assert(dish);
+    int timeout = 2000;
+    zmq_setsockopt(dish, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+
     assert(zmq_bind(dish, "udp://127.0.0.1:5556") == 0);
 
     rc = zmq_join(dish, "GRP");
@@ -20,9 +23,9 @@ int main(void) {
     while (1) {
         char buffer[1024];
         rc = zmq_recv(dish, buffer, 1023, 0);
-        if (rc == -1) {
-            printf("Error in receiving message\n");
-            break;
+        if (rc == -1 && errno == EAGAIN) {
+            // Timeout occurred
+            printf("Timeout occurred\n");
         }
 
         buffer[rc] = '\0'; // Null-terminate the string

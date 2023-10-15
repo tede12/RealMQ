@@ -28,6 +28,8 @@ int main(void) {
     void *radio = zmq_socket(ctx, ZMQ_RADIO);
     assert(radio);
     assert(zmq_connect(radio, "udp://127.0.0.1:5556") == 0);
+    int timeout = 1000;
+    zmq_setsockopt(radio, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 
     while (1) {
         const char *group = "GRP";
