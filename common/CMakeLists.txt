@@ -2,7 +2,7 @@ set(COMMON_SOURCE
         config.h config.c
         logger.h logger.c
         utils.h utils.c
-        zhelper.h
+        zhelpers.h zhelpers.c
         qos.h qos.c
         message_queue.h message_queue.c
         )

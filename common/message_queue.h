@@ -1,4 +1,9 @@
-// message_queue.h
+//  =====================================================================
+//  message_queue.h
+//
+//  Message queue for storing sent messages and handling responses
+//  =====================================================================
+
 #ifndef MESSAGE_QUEUE_H
 #define MESSAGE_QUEUE_H
 

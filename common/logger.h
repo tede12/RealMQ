@@ -1,5 +1,11 @@
-#ifndef REALMQ_LOGGER_H
-#define REALMQ_LOGGER_H
+//  =====================================================================
+//  logger.h
+//
+//  Logging functions
+//  =====================================================================
+
+#ifndef LOGGER_H
+#define LOGGER_H
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -42,4 +48,4 @@ void Logger_init(const char *name, logConfig *config, Logger *my_logger);
 
 void release_logger();
 
-#endif //REALMQ_LOGGER_H
+#endif //LOGGER_H

@@ -41,21 +41,23 @@ set(SOURCE_FILES
         common/message_queue.c
         common/config.c
         common/utils.c
+        common/zhelpers.c
         )
+
+
+# Include common files
+include_directories(common)
 
 # Executables
 add_executable(realmq_client realmq_client.c ${SOURCE_FILES})
 add_executable(realmq_server realmq_server.c ${SOURCE_FILES})
 
 # ------------------------------- Test executables ---------------------------------------
-add_executable(client draft_test/client.c)
-add_executable(server draft_test/server.c)
-target_link_libraries(client ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} Threads::Threads)
-target_link_libraries(server ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} Threads::Threads)
+add_executable(client draft_test/client.c ${SOURCE_FILES})
+add_executable(server draft_test/server.c ${SOURCE_FILES})
+target_link_libraries(client ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES} Threads::Threads)
+target_link_libraries(server ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES} Threads::Threads)
 # ----------------------------------------------------------------------------------------
-
-# Include common files
-include_directories(common)
 
 target_link_libraries(realmq_client
         ${ZMQ_LIBRARIES}
