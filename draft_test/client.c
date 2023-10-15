@@ -22,12 +22,12 @@ int zmq_send_group(void *socket, const char *group, const char *msg, int flags) 
 }
 
 int main(void) {
-    void *ctx = zmq_ctx_new();
-    assert(ctx);
+    void *context = zmq_ctx_new();
+    assert(context);
 
-    void *radio = zmq_socket(ctx, ZMQ_RADIO);
+    void *radio = zmq_socket(context, ZMQ_RADIO);
     assert(radio);
-    assert(zmq_connect(radio, "udp://127.0.0.1:5556") == 0);
+    assert(zmq_connect(radio, "udp://127.0.0.1:5555") == 0);
     int timeout = 1000;
     zmq_setsockopt(radio, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 
@@ -40,11 +40,12 @@ int main(void) {
             printf("Error in sending message\n");
             break;
         }
+        printf("Sent: %s\n", msg);
 
         sleep(1); // Send a message every second
     }
 
     zmq_close(radio);
-    zmq_ctx_destroy(ctx);
+    zmq_ctx_destroy(context);
     return 0;
 }

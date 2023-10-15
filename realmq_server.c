@@ -12,6 +12,8 @@
 #include "common/zhelper.h"
 #include "common/logger.h"
 
+#define REALMQ_VERSION
+
 // Global configuration
 Logger client_logger;
 // Get the date + time for the filename
@@ -25,7 +27,7 @@ json_object *json_messages = NULL; // Added to store all messages
 void handle_message(const char *message) {
     // Implement logic for handling received messages
     // In this example, we are just printing the message for demonstration purposes
-//    logger(LOG_LEVEL_INFO, "Received message: %s", message);
+    logger(LOG_LEVEL_INFO, "Received message: %s", message);
 }
 
 // Function for processing received JSON message and updating statistics
@@ -51,20 +53,35 @@ void *server_thread(void *args) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
     void *context = zmq_ctx_new();
+    assert(context);
     void *receiver = zmq_socket(context, get_zmq_type(SERVER));
+    assert(receiver);
+
     int rc = zmq_bind(receiver, get_address(MAIN_ADDRESS));  // Make sure to define MAIN_ADDRESS in config
-    assert(rc == 0);  // Ensure the socket is bound successfully
-    zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0);
+    if (rc != 0) {
+        logger(LOG_LEVEL_ERROR, "Failed to bind address: %s", get_address(MAIN_ADDRESS));
+        return NULL;
+    }
 
     // Set a timeout for zmq_recv
     zmq_setsockopt(receiver, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 
 #ifdef REALMQ_VERSION
+    zmq_join(receiver, get_group(MAIN_GROUP));  // Join the group in UDP (ZMQ_SUBSCRIBE in TCP)
+
     // Responder socket
-    void *responder = zmq_socket(context, ZMQ_REP);
-    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define RESPONDER in config
-    assert(rc == 0);  // Ensure the socket is bound successfully
+    void *responder = zmq_socket(context, ZMQ_RADIO);
+//    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define RESPONDER in config
+//    if (rc != 0) {
+//        logger(LOG_LEVEL_ERROR, "Failed to bind address: %s", get_address(RESPONDER));
+//        return NULL;
+//    }
+//    zmq_setsockopt(responder, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+//    assert(zmq_join(responder, get_group(RESPONDER_GROUP)) == 0);
+#else
+    zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0); // Join
 #endif
+
 
     // Wait for the specified time before starting to receive messages
     s_sleep(config.server_action->sleep_starting_time);
@@ -74,8 +91,8 @@ void *server_thread(void *args) {
     while (!interrupted) {
         char message[config.message_size + 64];
         int size = zmq_recv(receiver, message, sizeof(message), 0); // zmq_recv will return after timeout if no message
-        if (size == -1 && errno == EAGAIN) {    // this is needed for handling timeout
-            // In this case no message received
+        if (size == -1 && errno == EAGAIN) {
+            // In this case no message received or timeout occurred
             continue;
         }
         double recv_time = getCurrentTimeValue(NULL);
@@ -93,12 +110,13 @@ void *server_thread(void *args) {
         json_object *json_msg = json_tokener_parse(message);
         if (json_msg) {
 #ifdef REALMQ_VERSION
+            // This part send with the socket RESPONDER back the ID of the message to the client
             json_object *id_obj;
             if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
                 const char *id_str = json_object_get_string(id_obj);
 
                 // Send the ID back as a response
-                zmq_send(responder, id_str, strlen(id_str), 0);
+//                zmq_send_group(responder, get_group(RESPONDER_GROUP), id_str, 0);
             }
 #endif
             json_object_put(json_msg);  // free json object memory

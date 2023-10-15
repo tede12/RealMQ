@@ -80,9 +80,8 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Send the JSON message to the server
     const char *json_str = json_object_to_json_string(json_msg);
 
-    zmq_send(socket, json_str, strlen(json_str), 0);
-
 #ifdef REALMQ_VERSION
+    zmq_send_group(socket, get_group(MAIN_GROUP), json_str, 0);
 
     logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
 
@@ -90,6 +89,7 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     enqueue_message(message_id, send_time);
     return;
 #else
+    zmq_send(socket, json_str, strlen(json_str), 0);
 
     // ----- this things are implemented in the message_queue -----
 
@@ -131,15 +131,18 @@ void *client_thread(void *thread_id) {
 
     int thread_num = *(int *) thread_id;
     void *context = zmq_ctx_new();
+    assert(context);
     void *socket = zmq_socket(context, get_zmq_type(CLIENT));
-    zmq_connect(socket, get_address(MAIN_ADDRESS));
+    assert(socket);
+
+    assert(zmq_connect(socket, get_address(MAIN_ADDRESS)) == 0);
 
     // Set a timeout for receive operations
     zmq_setsockopt(socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 
 #ifdef REALMQ_VERSION
-    // Set a timeout for sending operations (for heartbeats)
-    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+    // Set a timeout for sending operations (for heartbeats) todo need to be fixed
+//    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
 #endif
 
     // Wait for the specified time before starting to send messages
@@ -149,7 +152,7 @@ void *client_thread(void *thread_id) {
     while (messages_sent < config.num_messages && !interrupted) {
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
-        send_heartbeat(socket);
+//        send_heartbeat(socket); todo need to be fixed
 #endif
 
         if (config.use_msg_per_minute) {
@@ -187,7 +190,7 @@ void *client_thread(void *thread_id) {
 
 #ifdef REALMQ_VERSION
         // After sending a batch of messages, check if the socket is still connected
-        try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
+//        try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT)); // todo need to be fixed
 #endif
 
     }
@@ -227,10 +230,13 @@ int main() {
 
     // Initialize the response handling thread
     void *response_context = zmq_ctx_new();
-    void *response_socket = zmq_socket(response_context, ZMQ_SUB);
-    zmq_connect(response_socket, get_address(RESPONDER));
+    void *response_socket = zmq_socket(response_context, ZMQ_DISH);
+    assert(response_socket);
+//    assert(zmq_connect(response_socket, get_address(RESPONDER)) == 0);
     // Set timeout for receive operations
     zmq_setsockopt(response_socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+    // Join the group
+//    assert(zmq_join(response_socket, get_group(RESPONDER_GROUP)) == 0);
 
     // Subscribe to all messages
     pthread_t response_thread;

@@ -7,22 +7,25 @@
 int main(void) {
 
     int rc;
-    void *ctx = zmq_ctx_new();
-    assert(ctx);
+    void *context = zmq_ctx_new();
+    assert(context);
 
-    void *dish = zmq_socket(ctx, ZMQ_DISH);
-    assert(dish);
+    void *receiver = zmq_socket(context, ZMQ_DISH);
+    assert(receiver);
+
+    // Set timeout for receive operations
+    assert(zmq_bind(receiver, "udp://127.0.0.1:5555") == 0);
+
     int timeout = 2000;
-    zmq_setsockopt(dish, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    zmq_setsockopt(receiver, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 
-    assert(zmq_bind(dish, "udp://127.0.0.1:5556") == 0);
 
-    rc = zmq_join(dish, "GRP");
+    rc = zmq_join(receiver, "GRP");
     assert(rc == 0);
 
     while (1) {
         char buffer[1024];
-        rc = zmq_recv(dish, buffer, 1023, 0);
+        rc = zmq_recv(receiver, buffer, 1023, 0);
         if (rc == -1 && errno == EAGAIN) {
             // Timeout occurred
             printf("Timeout occurred\n");
@@ -32,7 +35,7 @@ int main(void) {
         printf("Received: %s\n", buffer);
     }
 
-    zmq_close(dish);
-    zmq_ctx_destroy(ctx);
+    zmq_close(receiver);
+    zmq_ctx_destroy(context);
     return 0;
 }

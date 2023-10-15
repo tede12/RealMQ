@@ -2,6 +2,7 @@
 #include "logger.h"
 #include <zmq.h>
 
+Config config;  // The global definition of the configuration
 
 /**
  * Get the address of the responder or receiver. Example: tcp://ip:port
@@ -43,6 +44,23 @@ char *get_address(AddressType address_type) {
 }
 
 /**
+ * Get the group name based on the group type.
+ * @param group_type The group type.
+ * @return The group name.
+ */
+char *get_group(GroupType group_type) {
+    switch (group_type) {
+        case MAIN_GROUP:
+            return "GRP";
+        case RESPONDER_GROUP:
+            return "REP";
+        default:
+            logger(LOG_LEVEL_ERROR, "Invalid group type.");
+            return NULL;
+    }
+}
+
+/**
  * Get the ZMQ socket type based on the protocol.
  * @return The ZMQ socket type.
  */
@@ -52,17 +70,19 @@ int get_zmq_type(RoleType roleType) {
             return ZMQ_SUB;
         } else if (roleType == CLIENT) {
             return ZMQ_PUB;
-        } else {
-            logger(LOG_LEVEL_ERROR, "Invalid address type.");
-            raise(SIGINT);
-            return -1;
         }
+
     }
 
-#ifdef ZMQ_BUILD_DRAFT_API
+#define DZMQ_BUILD_DRAFT_API    // todo need to be fixed
+#ifdef DZMQ_BUILD_DRAFT_API
         // This code is only compiled if the ZMQ BUILD DRAFT is enabled otherwise it will raise an error
     else if (strcmp(config.protocol, "udp") == 0) {
-        return ZMQ_DGRAM;
+        if (roleType == SERVER) {
+            return ZMQ_DISH;
+        } else if (roleType == CLIENT) {
+            return ZMQ_RADIO;
+        }
     }
 #endif
 
@@ -71,6 +91,10 @@ int get_zmq_type(RoleType roleType) {
         raise(SIGINT);
         return -1;
     }
+
+    logger(LOG_LEVEL_ERROR, "Invalid address type.");
+    raise(SIGINT);
+    return -1;
 }
 
 

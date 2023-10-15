@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16.3)  # 3.16.3 is the max version supported by
 project(RealMQ C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
 
 # Find ZeroMQ, CZMQ, JSON-C, libyaml, and Threads
 find_package(PkgConfig REQUIRED)
@@ -10,7 +10,7 @@ find_package(Threads REQUIRED)
 
 pkg_check_modules(ZMQ REQUIRED libzmq)
 # Required for testing DGRAM sockets (UDP) that are not yet supported in stable releases only in draft releases
-#add_definitions(-DZMQ_BUILD_DRAFT_API)
+add_definitions(-DZMQ_BUILD_DRAFT_API)
 
 pkg_check_modules(CZMQ REQUIRED libczmq)
 pkg_check_modules(JSON-C REQUIRED json-c)
@@ -42,6 +42,13 @@ set(SOURCE_FILES
 # Executables
 add_executable(realmq_client realmq_client.c ${SOURCE_FILES})
 add_executable(realmq_server realmq_server.c ${SOURCE_FILES})
+
+# ------------------------------- Test executables ---------------------------------------
+add_executable(client draft_test/client.c)
+add_executable(server draft_test/server.c)
+target_link_libraries(client ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} Threads::Threads)
+target_link_libraries(server ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} Threads::Threads)
+# ----------------------------------------------------------------------------------------
 
 # Include common files
 include_directories(common)

@@ -64,9 +64,9 @@ def plot_data(file):
     plt.legend(extras, extra_labels, loc='upper right', title='Additional Info:')
 
     # Set the x-axis ticks with a fixed interval of 0.1
-    min_tick = np.floor(latency_min * 10) / 10
-    max_tick = np.ceil(latency_max * 10) / 10
-    plt.xticks(np.arange(min_tick, max_tick, 0.1))
+    min_tick = np.floor(latency_min * 60) / 60
+    max_tick = np.ceil(latency_max * 60) / 60
+    plt.xticks(np.arange(min_tick, max_tick, 0.01))
 
     plt.xlabel('Latency (ms)')
     plt.ylabel('Number of Messages')

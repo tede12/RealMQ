@@ -40,14 +40,21 @@ typedef enum {
 } AddressType;
 
 typedef enum {
+    MAIN_GROUP,
+    RESPONDER_GROUP
+} GroupType;
+
+typedef enum {
     SERVER,
     CLIENT
 } RoleType;
 
 
-Config config;
+extern Config config;
 
 char *get_address(AddressType address_type);
+
+char *get_group(GroupType group_type);
 
 int get_zmq_type(RoleType roleType);
 

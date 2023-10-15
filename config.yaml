@@ -2,7 +2,7 @@
 
 # General settings
 general:
-  protocol: "tcp"
+  protocol: "udp"
   main_address: 127.0.0.1:5555
   responder_address: 127.0.0.1:5556
   num_threads: 1
@@ -25,6 +25,7 @@ general:
 
   # signal_msg_timeout: timeout in milliseconds for the signal message (used to check if the server and client are alive)
   signal_msg_timeout: 500
+
 
 # Client settings
 client:

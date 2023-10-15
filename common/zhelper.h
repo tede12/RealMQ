@@ -49,8 +49,7 @@
 //  Receive 0MQ string from socket and convert into C string
 //  Caller must free returned string. Returns NULL if the context
 //  is being terminated.
-static char *
-s_recv(void *socket) {
+static char *s_recv(void *socket) {
     enum {
         cap = 256
     };
@@ -71,18 +70,34 @@ s_recv(void *socket) {
 }
 
 //  Convert C string to 0MQ string and send to socket
-static int
-s_send(void *socket, char *string) {
+static int s_send(void *socket, char *string) {
     int size = zmq_send(socket, string, strlen(string), 0);
     return size;
 }
 
 //  Sends string as 0MQ string, as multipart non-terminal
-static int
-s_sendmore(void *socket, char *string) {
+static int s_sendmore(void *socket, char *string) {
     int size = zmq_send(socket, string, strlen(string), ZMQ_SNDMORE);
     return size;
 }
+
+// Function to send a message with a group using zmq_send-like parameters
+int zmq_send_group(void *socket, const char *group, const char *msg, int flags) {
+    zmq_msg_t message;
+    zmq_msg_init_size(&message, strlen(msg));
+    memcpy(zmq_msg_data(&message), msg, strlen(msg));
+
+    int rc = zmq_msg_set_group(&message, group);
+    if (rc != 0) {
+        zmq_msg_close(&message);
+        return rc;
+    }
+
+    rc = zmq_msg_send(&message, socket, flags);
+    zmq_msg_close(&message);
+    return rc;
+}
+
 
 //  Sleep for a number of milliseconds
 static void
