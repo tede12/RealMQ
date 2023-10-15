@@ -43,7 +43,6 @@ void *responder_thread(void *arg) {
     return NULL;
 }
 
-
 int main(void) {
     int rc;
 

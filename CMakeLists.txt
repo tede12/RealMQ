@@ -22,10 +22,14 @@ include_directories(${ZMQ_INCLUDE_DIRS} ${CZMQ_INCLUDE_DIRS} ${JSON-C_INCLUDE_DI
 
 # ZeroMQ, CZMQ, JSON-C, and libyaml library paths
 if (APPLE)
-    file(GLOB ZEROMQ_PATHS /opt/homebrew/Cellar/zeromq/*/lib)
+    set(ZEROMQ_CUSTOM_PATH "~/libzmq/src/.libs") # This is where the compiled version of libzmq is located (with draft support enabled)
+
+    include_directories(${ZEROMQ_CUSTOM_PATH})
+    link_directories(${ZEROMQ_CUSTOM_PATH})
+
     file(GLOB CZMQ_PATHS /opt/homebrew/Cellar/czmq/*/lib)
     file(GLOB JSON-C_PATHS /opt/homebrew/Cellar/json-c/*/lib)
-    link_directories(${ZEROMQ_PATHS} ${CZMQ_PATHS} ${JSON-C_PATHS} ${YAML_LIBRARY_DIRS})
+    link_directories(${CZMQ_PATHS} ${JSON-C_PATHS} ${YAML_LIBRARY_DIRS})
 elseif (UNIX AND NOT APPLE)
     link_directories(${ZMQ_LIBRARY_DIRS} ${CZMQ_LIBRARY_DIRS} ${JSON-C_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
 endif ()
