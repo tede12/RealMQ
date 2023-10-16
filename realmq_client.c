@@ -248,7 +248,7 @@ int main() {
 
     // Print the initial configuration for the client
     timespec start_time = getCurrentTime();
-    logger(LOG_LEVEL_INFO, "Start Time: %.3f", getCurrentTimeValue(&start_time));
+    logger(LOG_LEVEL_DEBUG, "Start Time: %.3f", getCurrentTimeValue(&start_time));
 
     // Client threads
     pthread_t clients[config.num_threads];
@@ -262,7 +262,7 @@ int main() {
         pthread_join(clients[i], NULL);
     }
 
-    logger(LOG_LEVEL_INFO, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
+    logger(LOG_LEVEL_DEBUG, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
            getElapsedTime(start_time, NULL), config.server_action->sleep_starting_time);
 
 #ifdef REALMQ_VERSION

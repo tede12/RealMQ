@@ -106,7 +106,7 @@ void *server_thread(void *args) {
         }
     }
 
-    logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
+    logger(LOG_LEVEL_DEBUG, "Received messages: %d", messages_received);
 
     zmq_close(receiver);
 #ifdef REALMQ_VERSION
@@ -115,7 +115,7 @@ void *server_thread(void *args) {
     zmq_ctx_destroy(context);
 
     if (interrupted)
-        logger(LOG_LEVEL_INFO, "***Exiting server thread.");
+        logger(LOG_LEVEL_DEBUG, "***Exiting server thread.");
     return NULL;
 }
 
@@ -132,7 +132,7 @@ void save_stats_to_file() {
     char *dir = dirname(folder);
     create_if_not_exist_folder(dir);
 
-    logger(LOG_LEVEL_INFO, "Saving statistics to file: %s", fullPath);
+    logger(LOG_LEVEL_DEBUG, "Saving statistics to file: %s", fullPath);
 
     FILE *file = fopen(fullPath, "w");
     free(fullPath);
@@ -183,7 +183,7 @@ void *stats_saver_thread(void *args) {
         save_stats_to_file();
     }
     if (interrupted)
-        logger(LOG_LEVEL_INFO, "***Exiting stats saver thread.");
+        logger(LOG_LEVEL_DEBUG, "***Exiting stats saver thread.");
     return NULL;
 }
 
@@ -206,7 +206,7 @@ int main() {
     }
 
     // Print configuration
-    logger(LOG_LEVEL_INFO, get_configuration());
+    logger(LOG_LEVEL_DEBUG, get_configuration());
 
     // Initialize JSON statistics
     json_messages = json_object_new_array();
