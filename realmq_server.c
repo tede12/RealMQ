@@ -9,10 +9,10 @@
 #include <json-c/json.h>
 #include "common/utils.h"
 #include "common/config.h"
-#include "common/zhelper.h"
+#include "common/zhelpers.h"
 #include "common/logger.h"
 
-#define REALMQ_VERSION
+//#define REALMQ_VERSION
 
 // Global configuration
 Logger client_logger;
@@ -52,36 +52,23 @@ void process_json_message(const char *json_str, double recv_time) {
 void *server_thread(void *args) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
-    void *context = zmq_ctx_new();
-    assert(context);
-    void *receiver = zmq_socket(context, get_zmq_type(SERVER));
-    assert(receiver);
-
-    int rc = zmq_bind(receiver, get_address(MAIN_ADDRESS));  // Make sure to define MAIN_ADDRESS in config
-    if (rc != 0) {
-        logger(LOG_LEVEL_ERROR, "Failed to bind address: %s", get_address(MAIN_ADDRESS));
-        return NULL;
-    }
-
-    // Set a timeout for zmq_recv
-    zmq_setsockopt(receiver, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+    void *context = create_context();
+    void *receiver = create_socket(
+            context, get_zmq_type(SERVER),
+            get_address(MAIN_ADDRESS),
+            config.signal_msg_timeout,
+            get_group(MAIN_GROUP)
+    );
 
 #ifdef REALMQ_VERSION
-    zmq_join(receiver, get_group(MAIN_GROUP));  // Join the group in UDP (ZMQ_SUBSCRIBE in TCP)
-
     // Responder socket
-    void *responder = zmq_socket(context, ZMQ_RADIO);
-//    rc = zmq_bind(responder, get_address(RESPONDER));  // Make sure to define RESPONDER in config
-//    if (rc != 0) {
-//        logger(LOG_LEVEL_ERROR, "Failed to bind address: %s", get_address(RESPONDER));
-//        return NULL;
-//    }
-//    zmq_setsockopt(responder, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
-//    assert(zmq_join(responder, get_group(RESPONDER_GROUP)) == 0);
-#else
-    zmq_setsockopt(receiver, ZMQ_SUBSCRIBE, "", 0); // Join
+    void *responder = create_socket(
+            context, ZMQ_RADIO,
+            get_address(RESPONDER),
+            config.signal_msg_timeout,
+            NULL
+    );
 #endif
-
 
     // Wait for the specified time before starting to receive messages
     s_sleep(config.server_action->sleep_starting_time);

@@ -1,5 +1,6 @@
 #include "zhelpers.h"
 #include "logger.h"
+#include "config.h"
 
 //  Receive 0MQ string from socket and convert into C string
 //  Caller must free returned string. Returns NULL if the context
@@ -82,7 +83,7 @@ ProtocolType get_protocol_type(int socket_type) {
 void *create_socket(void *context, int socket_type, const char *connection, int timeout, char *socket_group) {
     /* Explanation of all steps for configuring a socket:
     1. TCP/UDP - [Create] a new socket
-    2. UDP     - [Connect] or [bind] the socket
+    2. TCP/UDP     - [Connect] or [bind] the socket
     3. TCP/UDP - [Set] the socket options (ex. timeout)
     4. UDP     - [Join] the group (only for receiving messages)
      */
@@ -105,6 +106,29 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
 
     switch (get_protocol_type(socket_type)) {
         case TCP:
+            if (socket_type == get_zmq_type(CLIENT)) {
+                // 2. Connect is used for sending messages
+                rc = zmq_connect(socket, connection);
+                if (rc != 0) {
+                    logger(LOG_LEVEL_ERROR, "Failed to [CONNECT] %s", common_msg);
+                    assert(rc == 0);
+                }
+
+            } else if (socket_type == get_zmq_type(SERVER)) {
+                // 2. Bind is used for receiving messages
+                rc = zmq_bind(socket, connection);
+                if (rc != 0) {
+                    logger(LOG_LEVEL_ERROR, "Failed to [BIND] %s", common_msg);
+                    assert(rc == 0);
+                }
+                // 3. Add option
+                zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0);
+
+            } else {
+                logger(LOG_LEVEL_ERROR, "Not implemented for socket type [%d]", socket_type);
+                return NULL;
+            }
+
             // 3. Add timeout option to the socket
             zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
             break;

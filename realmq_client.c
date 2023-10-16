@@ -5,10 +5,10 @@
 #include <time.h>
 #include "common/utils.h"
 #include "common/config.h"
-#include "common/zhelper.h"
+#include "common/zhelpers.h"
 #include "common/logger.h"
 
-#define REALMQ_VERSION
+//#define REALMQ_VERSION
 #ifdef REALMQ_VERSION
 
 #include "common/qos.h"
@@ -130,15 +130,16 @@ void *client_thread(void *thread_id) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
     int thread_num = *(int *) thread_id;
-    void *context = zmq_ctx_new();
-    assert(context);
-    void *socket = zmq_socket(context, get_zmq_type(CLIENT));
-    assert(socket);
+    void *context = create_context();
 
-    assert(zmq_connect(socket, get_address(MAIN_ADDRESS)) == 0);
-
-    // Set a timeout for receive operations
-    zmq_setsockopt(socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
+    // Create the socket for sending messages
+    void *socket = create_socket(
+            context,
+            get_zmq_type(CLIENT),
+            get_address(MAIN_ADDRESS),
+            config.signal_msg_timeout,
+            NULL
+    );
 
 #ifdef REALMQ_VERSION
     // Set a timeout for sending operations (for heartbeats) todo need to be fixed
@@ -228,15 +229,15 @@ int main() {
     // Initialize message queue
     initialize_message_queue();
 
-    // Initialize the response handling thread
-    void *response_context = zmq_ctx_new();
-    void *response_socket = zmq_socket(response_context, ZMQ_DISH);
-    assert(response_socket);
-//    assert(zmq_connect(response_socket, get_address(RESPONDER)) == 0);
-    // Set timeout for receive operations
-    zmq_setsockopt(response_socket, ZMQ_RCVTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
-    // Join the group
-//    assert(zmq_join(response_socket, get_group(RESPONDER_GROUP)) == 0);
+    // Initialize the RESPONDER handling thread
+    void *response_context = create_context();
+    void *response_socket = create_socket(
+            response_context,
+            ZMQ_DISH,
+            get_address(RESPONDER),
+            config.signal_msg_timeout,
+            get_group(RESPONDER_GROUP)
+    );
 
     // Subscribe to all messages
     pthread_t response_thread;
@@ -268,6 +269,12 @@ int main() {
 #ifdef REALMQ_VERSION
     // Finalize message queue
     finalize_message_queue();
+
+    // Finalize the RESPONDER handling thread
+    zmq_close(response_socket);
+    zmq_ctx_destroy(response_context);
+
+    pthread_join(response_thread, NULL);
 #endif
 
     // Release the configuration
