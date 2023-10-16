@@ -11,6 +11,7 @@ find_package(Threads REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 # Required for testing DGRAM sockets (UDP) that are not yet supported in stable releases only in draft releases
 add_definitions(-DZMQ_BUILD_DRAFT_API)
+add_definitions(-DREALMQ_VERSION)   # This is the version of RealMQ with QoS support
 
 pkg_check_modules(CZMQ REQUIRED libczmq)
 pkg_check_modules(JSON-C REQUIRED json-c)

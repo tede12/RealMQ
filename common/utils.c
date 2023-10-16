@@ -1,6 +1,9 @@
 #include "utils.h"
+#include "config.h"
+#include "logger.h"
 
 volatile sig_atomic_t interrupted = 0;
+char *date_time = NULL;
 
 /**
  * @brief Handle the keyboard interruption (Ctrl+C)
@@ -14,7 +17,7 @@ void handle_interrupt(int sig) {
 
 /**
  * @param folder_path
- * @return
+ * @return <folder_path> if the folder exists, otherwise create the folder and return <folder_path>
  */
 char *create_if_not_exist_folder(char *folder_path) {
     struct stat st = {0};
@@ -22,6 +25,51 @@ char *create_if_not_exist_folder(char *folder_path) {
         mkdir(folder_path, 0700);
     }
     return folder_path;
+}
+
+/**
+ * @brief Create the full path for the statistics file
+ * @param date_time
+ * @return <config.stats_folder_path>/<date_time>_<config.protocol>_result.<config.stats_file_extension>
+ */
+char *create_stats_path() {
+    // Generate one unique date time for each run
+    if (date_time == NULL) {
+        // Get the date + time for the filename
+        date_time = malloc(20 * sizeof(char));
+        if (date_time == NULL) {
+            logger(LOG_LEVEL_ERROR, "Allocation error for date_time variable.");
+            return NULL;
+        }
+        date_time = get_current_date_time();
+    }
+
+    // Get the file extension
+    char *file_extension = config.use_json ? ".json" : ".csv";  // Added the dot (.) before the extensions
+
+    // Calculate the total length of the final string
+    // Lengths of the folder path, date_time, file extension, and additional characters
+    // ("/", "_result.", and the null terminator)
+    unsigned int totalLength =
+            strlen(config.stats_folder_path)
+            + strlen(date_time)
+            + strlen(config.protocol)
+            + strlen("_result")
+            + strlen(file_extension) + 3;  // +3 for the '/' and the null terminator
+
+    // Allocate memory for the full file path
+    char *fullPath = (char *) malloc(totalLength * sizeof(char));
+
+    if (fullPath == NULL) {
+        logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
+        return NULL;
+    }
+
+    // Construct the full file path
+    snprintf(
+            fullPath, totalLength, "%s/%s_%s_result%s",
+            config.stats_folder_path, date_time, config.protocol, file_extension);
+    return fullPath;
 }
 
 

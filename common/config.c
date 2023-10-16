@@ -255,6 +255,14 @@ char *get_configuration() {
         return NULL;
     } else {
 
+        char qos_flag[7];
+
+#ifdef REALMQ_VERSION
+        snprintf(qos_flag, 7, "yes");
+#else
+        snprintf(qos_flag, 7, "no");
+#endif
+
         snprintf(configuration, 1024,
                  "\n------------------------------------------------\nConfiguration:\n"
                  "Address Main/Responder: %s, %s\n"
@@ -264,7 +272,10 @@ char *get_configuration() {
                  "Use JSON: %s\n"
                  "Save interval: %d s\n"
                  "Stats filepath: %s\n"
-                 "Client/Server sleep starting time: %d/%d ms\n------------------------------------------------\n\n",
+                 "Client/Server sleep starting time: %d/%d ms\n------------------------------------------------\n"
+                 "PROTOCOL: %s\n"
+                 "QOS: %s\n"
+                 "------------------------------------------------\n\n",
                  get_address(MAIN_ADDRESS), get_address(RESPONDER),
                  config.num_threads,
                  config.num_messages,
@@ -273,7 +284,9 @@ char *get_configuration() {
                  config.use_json ? "yes" : "no",
                  config.save_interval_seconds,
                  config.stats_folder_path,
-                 config.client_action->sleep_starting_time, config.server_action->sleep_starting_time
+                 config.client_action->sleep_starting_time, config.server_action->sleep_starting_time,
+                 config.protocol,
+                 qos_flag
         );
     }
     return configuration;

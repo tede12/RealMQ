@@ -19,6 +19,8 @@
 
 // Flag to indicate if keyboard interruption has been received
 extern volatile sig_atomic_t interrupted;
+// Get the date + time for the filename
+extern char *date_time;
 
 typedef struct timespec timespec;
 
@@ -27,6 +29,9 @@ void handle_interrupt(int sig);
 
 // Function to create folder if it doesn't exist
 char *create_if_not_exist_folder(char *folder_path);
+
+// Function to create the full path for the statistics file
+char *create_stats_path();
 
 // Function to get the current timestamp in seconds
 time_t get_timestamp();

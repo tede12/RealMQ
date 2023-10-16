@@ -12,13 +12,9 @@
 #include "common/zhelpers.h"
 #include "common/logger.h"
 
-//#define REALMQ_VERSION
 
 // Global configuration
 Logger client_logger;
-// Get the date + time for the filename
-char *date_time = NULL;
-
 
 // Variables for periodic statistics saving
 json_object *json_messages = NULL; // Added to store all messages
@@ -27,7 +23,7 @@ json_object *json_messages = NULL; // Added to store all messages
 void handle_message(const char *message) {
     // Implement logic for handling received messages
     // In this example, we are just printing the message for demonstration purposes
-    logger(LOG_LEVEL_INFO, "Received message: %s", message);
+//    logger(LOG_LEVEL_INFO, "Received message: %s", message);
 }
 
 // Function for processing received JSON message and updating statistics
@@ -129,37 +125,7 @@ void save_stats_to_file() {
         return;
     }
 
-    // Generate one unique date time for each run
-    if (date_time == NULL) {
-        // Get the date + time for the filename
-        date_time = malloc(20 * sizeof(char));
-        if (date_time == NULL) {
-            logger(LOG_LEVEL_ERROR, "Allocation error for date_time variable.");
-            return;
-        }
-        date_time = get_current_date_time();
-    }
-
-    // Get the file extension
-    char *file_extension = config.use_json ? ".json" : ".csv";  // Added the dot (.) before the extensions
-
-    // Calculate the total length of the final string
-    // Lengths of the folder path, date_time, file extension, and additional characters
-    // ("/", "_result.", and the null terminator)
-    unsigned int totalLength =
-            strlen(config.stats_folder_path) + strlen(date_time) + strlen("_result") +
-            strlen(file_extension) + 2;  // +2 for the '/' and the null terminator
-
-    // Allocate memory for the full file path
-    char *fullPath = (char *) malloc(totalLength * sizeof(char));
-
-    if (fullPath == NULL) {
-        logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
-        return;
-    }
-
-    // Construct the full file path
-    snprintf(fullPath, totalLength, "%s/%s_result%s", config.stats_folder_path, date_time, file_extension);
+    char *fullPath = create_stats_path();
 
     // Extract the folder path
     char *folder = strdup(fullPath); // Duplicate fullPath because dirname can modify the input argument
