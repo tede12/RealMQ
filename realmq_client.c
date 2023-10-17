@@ -106,7 +106,7 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     }
 
 #endif
-    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
+//    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
 }
 
 #ifdef REALMQ_VERSION
@@ -152,7 +152,7 @@ void *client_thread(void *thread_id) {
     while (messages_sent < config.num_messages && !interrupted) {
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
-        send_heartbeat(socket);  // Refer to common/qos.c
+        send_heartbeat(socket, get_group(MAIN_GROUP));  // Refer to common/qos.c
 #endif
 
         if (config.use_msg_per_minute) {
@@ -200,6 +200,11 @@ void *client_thread(void *thread_id) {
 
     if (interrupted)
         logger(LOG_LEVEL_INFO, "***Exiting client thread.");
+
+    // add message_sent to the global counter
+    sem_wait(&mutex);
+    message_sent_correctly += messages_sent;
+    sem_post(&mutex);
 
     return NULL;
 }

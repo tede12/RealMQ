@@ -26,6 +26,13 @@ int main(void) {
             continue;
         }
 
+        // Check if prefix of the message is "HB" (heartbeat)
+        if (strncmp(buffer, "HB", 2) == 0) {
+            // Heartbeat received
+            printf("Heartbeat received\n");
+            continue;
+        }
+
         buffer[rc] = '\0'; // Null-terminate the string
         printf("Received from client [MAIN]: %s\n", buffer);
 

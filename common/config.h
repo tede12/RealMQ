@@ -60,7 +60,7 @@ extern Config config;
 
 char *get_address(AddressType address_type);
 
-char *get_group(GroupType group_type);
+const char *get_group(GroupType group_type);
 
 int get_zmq_type(RoleType roleType);
 

@@ -48,7 +48,7 @@ char *get_address(AddressType address_type) {
  * @param group_type The group type.
  * @return The group name.
  */
-char *get_group(GroupType group_type) {
+const char *get_group(GroupType group_type) {
     switch (group_type) {
         case MAIN_GROUP:
             return "GRP";

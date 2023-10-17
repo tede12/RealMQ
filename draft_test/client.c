@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include "../common/zhelpers.h"
 #include "../common/utils.h"
+#include "../common/qos.h"
 
 
 int interrupted_ = 0;
@@ -55,6 +56,9 @@ int main(void) {
     while (1) {
         const char *msg = "Hello";
 
+        // QoS - Send a heartbeat
+        send_heartbeat(radio, "GRP");
+
         rc = zmq_send_group(radio, "GRP", msg, 0);
         if (rc == -1) {
             printf("Error in sending message\n");
@@ -66,7 +70,7 @@ int main(void) {
         send_time = getCurrentTime();
 
 
-        sleep(5); // Send a message every second
+        sleep(60); // Send a message every second
     }
 
     interrupted_ = 1;

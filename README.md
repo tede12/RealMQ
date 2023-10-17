@@ -109,8 +109,8 @@ and reliability.
 ### Overview of QoS Levels
 
 One of the pivotal enhancements made in the realm of QoS is the integration of the
-[**Phi Accrual Failure Detector algorithm
-**](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector).
+**[Phi Accrual Failure Detector algorithm
+](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector)**.
 This algorithm, originally conceived for distributed systems to detect
 node failures, has been ingeniously repurposed in this context to address the issue of packet loss within UDP
 communications.
@@ -174,10 +174,8 @@ threshold increases.
 The `φ` threshold can be adjusted based on the current network conditions and the application's tolerance
 for packet loss. For example, if the network is experiencing intermittent packet loss, the threshold can be increased
 to reduce the likelihood of false positives. Similarly, if the application can tolerate a certain amount of packet
-loss, the threshold can be adjusted accordingly.
-
-Choosing the optimal `φ` threshold is a critical decision. The authors of the original paper provide insights
-through **Exp. 1** and **Exp. 2**.  
+loss, the threshold can be adjusted accordingly. Choosing the optimal `φ` threshold is a critical decision.   
+The authors of the original paper provide insights through **Exp. 1** and **Exp. 2**.  
 Briefly, **Exp. 1** showcases how the mistake rate fluctuates with varying `φ`
 threshold using the φ failure detector, while **Exp. 2** illustrates the change in detection time. Both figures give
 valuable insights into how the choice of the `φ` threshold impacts the performance of the φ failure detector in terms
@@ -210,6 +208,6 @@ varying network conditions, enhancing the reliability of failure detection.
    sampling window, extracting the mean `μ` and variance `σ^2` from samples. The probability $`P_{later}(t)`$ which
    signifies the likelihood that a heartbeat will be delayed by over t time units from its predecessor is computed using
    the formula below:  
-   $`P_{later}(t) = \frac{1}{\sigma\sqrt{2\pi}} \int_{t}^{+\infty} e^{-\frac{(x-\mu)^2}{2\sigma^2}} \, dx = 1 - F(t)`$
+   $`P_{later}(t) = \frac{1}{\sigma\sqrt{2\pi}} \int_{t}^{+\infty} e^{-\frac{(x-\mu)^2}{2\sigma^2}} \, dx = 1 - F(t)`$  
    _Here, `F(t)` is the cumulative distribution function of a normal distribution with mean `μ` and variance `σ^2`._
 
