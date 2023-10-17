@@ -13,6 +13,9 @@ the [pub/sub pattern](https://zguide.zeromq.org/docs/chapter5/) of *ZeroMQ*.
 3. **Performance Benchmarking**: Compare the performance of the original ZeroMQ library with the real-time version using
    a series of benchmarks.
 
+## Installation
+The document that describes the installation process can be found [here](docs/INSTALLATION.md).
+
 ## Enhancements
 
 Here are some of the enhancements made to the library:
@@ -69,94 +72,6 @@ Performance is assessed using the following benchmarks:
    helping
    to compare the real-time version's performance against the original for prolonged processing requests.
 
-## Getting Started
-
-### Prerequisites
-
-- C compiler (e.g., gcc)
-- Python (for generating graphs)
-
-## Installation
-
-1. Clone the repository
-
-```bash
-git clone https://www.github.com/tede12/RealMQ
-```
-
-2. Run the install script
-
-```bash
-chmod +x install.sh && ./install.sh
-```
-
-### Compiler draft zmq for using UDP feature
-
-- **Linux version**
-
-    ```bash
-        sudo apt-get install libtool pkg-config build-essential autoconf automake
-        git clone https://github.com/zeromq/libzmq
-        cd libzmq
-        ./autogen.sh
-        ./configure --with-libsodium --enable-drafts=yes
-        make
-        sudo make install
-    ```
-  After compiling if the command `pkg-config --cflags libzmq` shows `-I/usr/local/include -DZMQ_BUILD_DRAFT_API` then it
-  is successfully compiled and draft api is enabled.
-
-    - **MacOS version**
-
-        ```bash
-            brew install qt@5 automake autoconf libtool pkg-config
-            cd # In this example we compile in the home directory (if you want to change the directory, you must change the path in the CMakelists.txt file)
-            git clone https://github.com/zeromq/libzmq
-            LDFLAGS="-L/opt/homebrew/opt/qt@5/lib" ./configure --disable-dependency-tracking --with-libsodium --enable-drafts=yes --without-documentation
-            make
-            sudo make install
-        ```
-      After compiling if the program do not find the DYLD_LIBRARY_PATH then you must add it to the path:
-        ```bash
-            export DYLD_LIBRARY_PATH=~/libzmq/src/.libs:$DYLD_LIBRARY_PATH
-        ```
-      If you want to add it permanently to dyld library path the you need to update the lib in `/usr/local/lib`:
-        ```bash
-            sudo cp ~/libzmq/src/.libs/libzmq.5.dylib /usr/local/lib/
-        ```
-      After this command you should be able to see the library in the `/usr/local/lib` folder.
-      ```bash
-        ls /usr/local/lib/ | grep libzmq
-      ```
-      To be sure everything is working fine you should update dyld cache:
-      ```bash
-      sudo update_dyld_shared_cache
-      ```
-      At the end you should be able to run the executable without any problem.
-
-## Usage
-
-1. Compile the project using CMake:
-
-```bash
-mkdir build && cd build && cmake .. && make
-```
-
-2. Run the server and client executables:
-
-```bash
-# client and server executables are located in the build directory
-
-# Start the server node
-./realmq_server
-
-# (optional) run the plot.py script to graph the results
-source ../venv/bin/activate && python3 ../plot.py
-
-# Start the client node
-./realmq_client
-```
-
 ## Scheme of the Project
 
 - **TCP** is the default protocol used by ZeroMQ.
@@ -168,15 +83,84 @@ source ../venv/bin/activate && python3 ../plot.py
 
 ### Client-Server Communication
 
-client (publisher) sends messages to the server (subscriber) using a UDP socket.
+client (publisher) sends messages to the server (subscriber) using a **TCP** or **UDP** socket.
 
 - Client threads
-    - PUBLISHER socket (ZMQ_PUB) (for sending messages to the server)
-    - RESPONDER socket (ZMQ_SUB) (for checking received messages from the server)
-    - TIMEOUT socket (ZMQ_RCVTIMEO/ZMQ_SNDTIMEO)
+    - PUBLISHER socket (`ZMQ_PUB`/`ZMQ_RADIO`) (for sending messages to the server)
+    - RESPONDER socket (`ZMQ_SUB`/`ZMQ_DISH`) (for checking received messages from the server)
+    - TIMEOUT socket (`ZMQ_RCVTIMEO`/`ZMQ_SNDTIMEO`)
 - Server threads
-    - SUBSCRIBER socket (ZMQ_SUB) (for receiving messages from client)
-    - RESPONDER socket (ZMQ_REP)
+    - SUBSCRIBER socket (`ZMQ_SUB/ZMQ_DISH`) (for receiving messages from client)
+    - RESPONDER socket (`ZMQ_REP`)
 
+## QoS Levels Implementation
 
+In the context of the project, ensuring Quality of Service (QoS) is paramount, especially with real-time applications
+where the integrity and timely delivery of every piece of data can be critical. The switch from TCP to UDP, while
+advantageous in terms of latency and throughput, introduces challenges primarily related to the reliability of data
+transmission. UDP, by its very nature, does not guarantee the delivery of packets, and there is no built-in mechanism
+for acknowledging the receipt of data or for retransmission in the case of packet loss.
+This inherent unreliability of UDP necessitates the incorporation of advanced strategies within the real-time ZeroMQ
+library to ensure that the Quality of Service (QoS) is not compromised. Therefore, an innovative approach has been
+adopted in this project to mitigate the risk of packet loss in UDP communications, enhancing the protocol's stability
+and reliability.
+
+### Overview of QoS Levels
+
+One of the pivotal enhancements made in the realm of QoS is the integration of the
+[**Phi Accrual Failure Detector algorithm
+**](https://www.computer.org/csdl/proceedings-article/srds/2004/22390066/12OmNvT2phv).
+This algorithm, originally conceived for distributed systems to detect
+node failures, has been ingeniously repurposed in this context to address the issue of packet loss within UDP
+communications.
+
+The Phi Accrual Failure Detector operates on the principle of calculating the 'suspicion' or likelihood that a packet
+loss has occurred. Unlike traditional failure detectors that provide a binary (alive/suspected) status, the φ accrual
+failure detector offers a more nuanced view by outputting a continuous value representing the likelihood that a
+monitored process has crashed.
+It does this by evaluating the inter-arrival times of packets and, using these, computes a phi
+value that reflects the probability of a packet loss incident. When the phi value exceeds a certain threshold, the
+algorithm infers that a packet has likely been lost.
+
+In the implementation within the real-time ZeroMQ library, this mechanism plays a crucial role in maintaining QoS in
+several ways:
+
+1. **Packet Loss Detection and Notification**: The primary function of the Phi Accrual Failure Detector in this setting
+   is to reliably detect instances of potential packet loss. Upon detection, it triggers notifications to the pertinent
+   system components, thereby invoking immediate remedial action.
+2. **Dynamic Threshold Configuration**: The algorithm allows for dynamic adjustment of the phi threshold, based on the
+   current network conditions and the application's tolerance for packet loss.
+3. **Augmented Reliability through Retransmission**: The Phi Accrual Failure Detector mechanism is crucial
+   for the implementation of advanced retransmission strategies to ensure the reliable delivery of data.
+
+### Heartbeat-Based Implementation
+
+The φ accrual failure detector relies on periodic "heartbeat" messages sent by monitored processes to signal their
+aliveness. Each process sends heartbeats at regular intervals ($`∆_i`$), and the monitoring process expects to receive
+these heartbeats within a certain timeout period ($`∆_to`$$). Failure to receive a heartbeat within this timeframe
+raises the suspicion level for the monitored process.
+
+### Accrual Detection
+
+The real power of the `φ` accrual failure detector lies in its sophisticated treatment of the heartbeats' inter-arrival
+times. It maintains a sliding window of the recent heartbeats' arrival times and uses this data to estimate a
+statistical distribution of expected heartbeat arrivals. The `φ` value is then calculated based on the probability
+that a new heartbeat should have arrived given the historical distribution, but has not. Specifically, `φ` is computed
+as:  
+$`φ(t) = -log10(Plater(t))`$
+
+Here, `Plater(t)` represents the probability of a heartbeat arriving later than time `t` based on the historical
+inter-arrival time distribution. A higher `φ` value indicates a higher suspicion that the monitored process has crashed.
+
+## The Increasing Timeout Algorithm
+
+The "Increasing Timeout" algorithm is an integral component of the heartbeat-based failure detection mechanism. 
+This algorithm, specifically designed for distributed systems, continually adjusts the timeout interval to accommodate 
+varying network conditions, enhancing the reliability of failure detection.
+
+### Key symbols
+
+- $`∆_i`$: Interval between heartbeats
+- $`∆_to`$: Timeout interval
+- todo...
 
