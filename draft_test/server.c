@@ -6,6 +6,7 @@
 #include "../common/zhelpers.h"
 
 int main(void) {
+    printf("Server started\n");
 
     int rc;
     void *context = create_context();
@@ -22,7 +23,6 @@ int main(void) {
         rc = zmq_recv(dish, buffer, 1023, 0);
         if (rc == -1 && errno == EAGAIN) {
             // Timeout occurred
-            printf("Timeout occurred\n");
             continue;
         }
 

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <zmq.h>
+#include<semaphore.h>
 #include <time.h>
 #include "common/utils.h"
 #include "common/config.h"
@@ -20,6 +21,8 @@
 
 // Global configuration
 Logger client_logger;
+size_t message_sent_correctly = 0;
+sem_t mutex;  // semaphore to protect the counter
 
 // Function that returns a random string of the given size
 char *random_string(unsigned int string_size) {
@@ -82,11 +85,8 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 #ifdef REALMQ_VERSION
     zmq_send_group(socket, get_group(MAIN_GROUP), json_str, 0);
 
-    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
-
     // Enqueue the message after it's sent
     enqueue_message(message_id, send_time);
-    return;
 #else
     zmq_send(socket, json_str, strlen(json_str), 0);
 
@@ -95,13 +95,18 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Check if the message was sent successfully
     zmq_recv(socket, message, sizeof(message), 0);
 
-    logger(LOG_LEVEL_INFO, "Received message: %s", message);
+    // check if message response is the same as the message_id
+    if (atof(message) != message_id) {
+        logger(LOG_LEVEL_ERROR, "Message response is not the same as the sent message");
+    } else {
+        // Increment the counter of messages sent correctly
+        sem_wait(&mutex);
+        message_sent_correctly++;
+        sem_post(&mutex);
+    }
 
-    // timespec end_time = getCurrentTime();
-
-    // received message...
 #endif
-
+    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
 }
 
 #ifdef REALMQ_VERSION
@@ -131,7 +136,7 @@ void *client_thread(void *thread_id) {
     int thread_num = *(int *) thread_id;
     void *context = create_context();
 
-    // Create the socket for sending messages
+    // Create the socket for sending messages PUB/RADIO
     void *socket = create_socket(
             context,
             get_zmq_type(CLIENT),
@@ -140,11 +145,6 @@ void *client_thread(void *thread_id) {
             NULL
     );
 
-#ifdef REALMQ_VERSION
-    // Set a timeout for sending operations (for heartbeats) todo need to be fixed
-//    zmq_setsockopt(socket, ZMQ_SNDTIMEO, &config.signal_msg_timeout, sizeof(config.signal_msg_timeout));
-#endif
-
     // Wait for the specified time before starting to send messages
     s_sleep(config.client_action->sleep_starting_time);
 
@@ -152,7 +152,7 @@ void *client_thread(void *thread_id) {
     while (messages_sent < config.num_messages && !interrupted) {
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
-//        send_heartbeat(socket); todo need to be fixed
+        send_heartbeat(socket);  // Refer to common/qos.c
 #endif
 
         if (config.use_msg_per_minute) {
@@ -188,9 +188,9 @@ void *client_thread(void *thread_id) {
             messages_sent++;
         }
 
-#ifdef REALMQ_VERSION
-        // After sending a batch of messages, check if the socket is still connected
-//        try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT)); // todo need to be fixed
+#ifndef REALMQ_VERSION  // ONLY FOR TCP
+        // After sending a batch of messages, check if the socket is still connected in TCP
+        try_reconnect(context, &socket, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
 #endif
 
     }
@@ -264,6 +264,7 @@ int main() {
 
     logger(LOG_LEVEL_DEBUG, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
            getElapsedTime(start_time, NULL), config.server_action->sleep_starting_time);
+    logger(LOG_LEVEL_DEBUG, "Messages sent correctly: %ld", message_sent_correctly);
 
 #ifdef REALMQ_VERSION
     // Finalize message queue

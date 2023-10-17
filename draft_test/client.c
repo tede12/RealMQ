@@ -5,6 +5,7 @@
 #include <unistd.h> // for sleep()
 #include <pthread.h>
 #include "../common/zhelpers.h"
+#include "../common/utils.h"
 
 
 int interrupted_ = 0;
@@ -17,7 +18,6 @@ void *responder_thread(void *arg) {
         int rc = zmq_recv(socket, buffer, 1023, 0);
         if (rc == -1 && errno == EAGAIN) {
             // Timeout occurred
-            printf("Timeout occurred\n");
             continue;
         }
 
@@ -28,6 +28,10 @@ void *responder_thread(void *arg) {
 }
 
 int main(void) {
+
+    sleep(3);    // wait for server to start
+    printf("Client started\n");
+
     int rc;
 
 
@@ -35,6 +39,7 @@ int main(void) {
 
     // RADIO for CLIENT
     void *radio = create_socket(context, ZMQ_RADIO, "udp://127.0.0.1:5555", 1000, NULL);
+
     // -----------------------------------------------------------------------------------------------------------------
     // DISH for RESPONDER
     // -----------------------------------------------------------------------------------------------------------------
@@ -44,19 +49,24 @@ int main(void) {
     pthread_t responder;
     pthread_create(&responder, NULL, responder_thread, dish);
     // -----------------------------------------------------------------------------------------------------------------
+    timespec send_time = getCurrentTime();
+
 
     while (1) {
-        const char *group = "GRP";
         const char *msg = "Hello";
 
-        rc = zmq_send_group(radio, group, msg, 0);
+        rc = zmq_send_group(radio, "GRP", msg, 0);
         if (rc == -1) {
             printf("Error in sending message\n");
             break;
         }
-        printf("Sent from client [MAIN]: %s\n", msg);
+        printf("Sent from client [MAIN]: %s (time spent since last message: %f)\n", msg,
+               getElapsedTime(send_time, NULL));
 
-        sleep(1); // Send a message every second
+        send_time = getCurrentTime();
+
+
+        sleep(5); // Send a message every second
     }
 
     interrupted_ = 1;

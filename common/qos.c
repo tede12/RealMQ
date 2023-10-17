@@ -34,7 +34,7 @@ void send_heartbeat(void *socket) {
     }
 }
 
-// Helper function to handle reconnection
+// Helper function to handle reconnection of the socket in case of disconnection (used by the client only for TCP)
 void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type) {
     // Check the status of the socket
     int socket_status;
