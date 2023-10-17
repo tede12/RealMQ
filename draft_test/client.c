@@ -70,7 +70,7 @@ int main(void) {
         send_time = getCurrentTime();
 
 
-        sleep(60); // Send a message every second
+        sleep(1); // Send a message every second
     }
 
     interrupted_ = 1;

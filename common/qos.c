@@ -76,6 +76,12 @@ void update_phi_accrual_failure_detector(time_t new_time) {
 void send_heartbeat(void *socket, const char *group) {
     time_t current_time = time(NULL);
 
+    if (last_heartbeat_times[last_heartbeat_index] == 0) {
+        // If it's the first heartbeat, set the time of the last heartbeat to the current time
+        last_heartbeat_times[last_heartbeat_index] = current_time;
+        return;
+    }
+
     // Calculate the phi value based on the current time
     double phi = calculate_phi(current_time);
 
