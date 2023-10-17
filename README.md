@@ -109,7 +109,7 @@ and reliability.
 
 One of the pivotal enhancements made in the realm of QoS is the integration of the
 [**Phi Accrual Failure Detector algorithm
-**](https://www.computer.org/csdl/proceedings-article/srds/2004/22390066/12OmNvT2phv).
+**](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector).
 This algorithm, originally conceived for distributed systems to detect
 node failures, has been ingeniously repurposed in this context to address the issue of packet loss within UDP
 communications.
@@ -122,13 +122,20 @@ It does this by evaluating the inter-arrival times of packets and, using these, 
 value that reflects the probability of a packet loss incident. When the phi value exceeds a certain threshold, the
 algorithm infers that a packet has likely been lost.
 
+<div align="center">
+  <p><b>Failure Detector</b></p>
+</div>
+<p align="center">
+   <img src="./.github/images/Failure_Detector.png" width="70%"/><br/>
+</p>
+
 In the implementation within the real-time ZeroMQ library, this mechanism plays a crucial role in maintaining QoS in
 several ways:
 
 1. **Packet Loss Detection and Notification**: The primary function of the Phi Accrual Failure Detector in this setting
    is to reliably detect instances of potential packet loss. Upon detection, it triggers notifications to the pertinent
    system components, thereby invoking immediate remedial action.
-2. **Dynamic Threshold Configuration**: The algorithm allows for dynamic adjustment of the phi threshold, based on the
+2. **Threshold Configuration**: The algorithm allows for dynamic adjustment of the phi threshold, based on the
    current network conditions and the application's tolerance for packet loss.
 3. **Augmented Reliability through Retransmission**: The Phi Accrual Failure Detector mechanism is crucial
    for the implementation of advanced retransmission strategies to ensure the reliable delivery of data.
@@ -147,10 +154,42 @@ times. It maintains a sliding window of the recent heartbeats' arrival times and
 statistical distribution of expected heartbeat arrivals. The `φ` value is then calculated based on the probability
 that a new heartbeat should have arrived given the historical distribution, but has not. Specifically, `φ` is computed
 as:  
-$`φ(t) = -log10(Plater(t))`$
+$`\phi(t_{\text{now}}) \stackrel{\text{def}}{=} -\log_{10}\left( P_{\text{later}}(t_{\text{now}} - T_{\text{last}}) \right)`$
 
-Here, `Plater(t)` represents the probability of a heartbeat arriving later than time `t` based on the historical
-inter-arrival time distribution. A higher `φ` value indicates a higher suspicion that the monitored process has crashed.
+_Here, `Plater(t)` represents the probability of a heartbeat arriving later than time `t` based on the historical
+inter-arrival time distribution. A higher `φ` value indicates a higher suspicion that the monitored process has crashed._  
+
+
+In simpler terms, the `φ` value helps us determine how likely it is that we've made an incorrect assumption about a 
+process being down when it might just be delayed. For example, if we set a certain limit, let's say `φ = 1`, and decide 
+to suspect a process of failure when `φ` reaches or exceeds this limit, there's roughly a 10% chance we could be 
+wrong—meaning, a late heartbeat could eventually arrive to prove the process is still alive. Similarly, if we adjust 
+the limit to `φ = 2`, the chance of being mistaken drops to about 1%. With `φ = 3`, the error probability reduces 
+further to around 0.1%. The pattern continues in this manner, with the likelihood of error shrinking as the `φ` 
+threshold increases.
+
+### Threshold Adjustment
+
+The `φ` threshold can be adjusted based on the current network conditions and the application's tolerance
+for packet loss. For example, if the network is experiencing intermittent packet loss, the threshold can be increased
+to reduce the likelihood of false positives. Similarly, if the application can tolerate a certain amount of packet
+loss, the threshold can be adjusted accordingly.
+
+Choosing the optimal `φ` threshold is a critical decision. The authors of the original paper provide insights 
+through **Exp. 1** and **Exp. 2**.  
+Briefly, **Exp. 1** showcases how the mistake rate fluctuates with varying `φ` 
+threshold using the φ failure detector, while **Exp. 2** illustrates the change in detection time. Both figures give 
+valuable insights into how the choice of the `φ` threshold impacts the performance of the φ failure detector in terms 
+of mistake rate and detection time. 
+
+<div align="center">
+  <p><b>Threshold Experiments</b></p>
+</div>
+<p align="center">
+   <img src="./.github/images/Threshold_Experiments.png" width="70%"/><br/>
+</p>
+
+---
 
 ## The Increasing Timeout Algorithm
 
