@@ -145,7 +145,7 @@ several ways:
 
 The φ accrual failure detector relies on periodic "heartbeat" messages sent by monitored processes to signal their
 aliveness. Each process sends heartbeats at regular intervals ($`∆_i`$), and the monitoring process expects to receive
-these heartbeats within a certain timeout period ($`∆_to`$$). Failure to receive a heartbeat within this timeframe
+these heartbeats within a certain timeout period ($`∆_to`$). Failure to receive a heartbeat within this timeframe
 raises the suspicion level for the monitored process.
 
 ### Accrual Detection
@@ -198,12 +198,12 @@ varying network conditions, enhancing the reliability of failure detection.
 
 ### Steps of the Algorithm
 
-1. Heartbeat Sampling:
+1. **Heartbeat Sampling**:
    Every heartbeat message from the monitored process (`p`) is tagged with a sequence number. The monitoring
    process (`q`) maintains these heartbeat arrival times within a fixed-size sampling window `WS`. Arrival intervals are
    computed from this window, and to maintain the mean `μ` and variance `σ^2`, the sum and sum of squares for all
    samples in the window are tracked.
-2. Distribution Estimation and φ Computation:
+2. **Distribution Estimation and φ Computation**:
    Inter-arrival times are believed to be normally distributed. The distribution parameters are deduced from the
    sampling window, extracting the mean `μ` and variance `σ^2` from samples. The probability $`P_{later}(t)`$ which
    signifies the likelihood that a heartbeat will be delayed by over t time units from its predecessor is computed using

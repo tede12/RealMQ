@@ -13,11 +13,12 @@
 #include "common/logger.h"
 
 
-// Global configuration
+// ---------------------------------------- Global configuration -------------------------------------------------------
 Logger client_logger;
 
 // Variables for periodic statistics saving
 json_object *json_messages = NULL; // Added to store all messages
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Function for handling received messages
 void handle_message(const char *message) {
@@ -43,7 +44,6 @@ void process_json_message(const char *json_str, double recv_time) {
     }
 }
 
-
 // Function executed by the server
 void *server_thread(void *args) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
@@ -58,8 +58,9 @@ void *server_thread(void *args) {
 
 #ifdef REALMQ_VERSION
     // Responder socket
+    void *context2 = create_context();
     void *responder = create_socket(
-            context, ZMQ_RADIO,
+            context2, ZMQ_RADIO,
             get_address(RESPONDER),
             config.signal_msg_timeout,
             NULL
@@ -80,12 +81,18 @@ void *server_thread(void *args) {
         }
         double recv_time = getCurrentTimeValue(NULL);
 
+#ifdef REALMQ_VERSION
         // Check if prefix of the message is "HB" (heartbeat)
         if (strncmp(message, "HB", 2) == 0) {
             // Heartbeat received
             logger(LOG_LEVEL_INFO, "Heartbeat received");
+
+            // last id received
+            char* last_id = message_ids[num_message_ids - 1];
+            process_message_ids(responder, last_id);
             continue;
         }
+#endif
 
         // Process the received message
         handle_message(message);
@@ -99,16 +106,25 @@ void *server_thread(void *args) {
         // Extract the ID from the message
         json_object *json_msg = json_tokener_parse(message);
         if (json_msg) {
-#ifdef REALMQ_VERSION
             // This part send with the socket RESPONDER back the ID of the message to the client
             json_object *id_obj;
             if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
                 const char *id_str = json_object_get_string(id_obj);
 
-                // Send the ID back as a response
-//                zmq_send_group(responder, get_group(RESPONDER_GROUP), id_str, 0);
-            }
+#ifdef REALMQ_VERSION
+                // Store the ID
+                add_message_id(id_str);
+#else
+                // Send the ID back to the client
+                int rc = zmq_send(receiver, id_str, strlen(id_str), 0);
+                if (rc == -1) {
+                    logger(LOG_LEVEL_ERROR, "Error in sending message");
+                }
+
 #endif
+            }
+
+
             json_object_put(json_msg);  // free json object memory
         }
     }

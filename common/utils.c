@@ -1,9 +1,171 @@
 #include "utils.h"
 #include "config.h"
 #include "logger.h"
+#include "zhelpers.h"
 
 volatile sig_atomic_t interrupted = 0;
 char *date_time = NULL;
+
+// List of IDs received since the last heartbeat
+char **message_ids = NULL;
+size_t num_message_ids = 0;
+pthread_mutex_t message_ids_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex to protect message_ids
+const int MAX_RESPONSE_LENGTH = 1024;
+char *IDS_SEPARATOR = ",";
+
+
+/**
+ * @brief Process the IDs received since the last heartbeat and send them back to the client
+ * @param responder
+ * @param last_id
+ */
+void process_message_ids(void *responder, char *last_id) {
+    pthread_mutex_lock(&message_ids_mutex); // ensure thread safety
+
+    if (num_message_ids > 0) {
+        size_t current_size = 0;
+        char *ids_string = malloc(MAX_RESPONSE_LENGTH); // buffer for each message
+        if (ids_string == NULL) {
+            logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
+            return;
+        }
+        ids_string[0] = '\0'; // start with an empty string
+
+        for (size_t i = 0; i < num_message_ids; ++i) {
+            current_size += strlen(message_ids[i]) + strlen(IDS_SEPARATOR); // +1 for separator
+
+            // Check if adding the next ID would exceed the max length
+            if (current_size + ((last_id != NULL) ? strlen(last_id) : 0) >= MAX_RESPONSE_LENGTH) {
+                // Send the current string of IDs before it gets too large
+                while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, strlen(ids_string)) < 0) {
+                    if (errno == EAGAIN) {
+                        logger(LOG_LEVEL_ERROR, "Timeout occurred while sending IDs.");
+                        continue;
+                    } else {
+                        logger(LOG_LEVEL_ERROR, "Error occurred while sending IDs.");
+                        break;
+                    }
+                }
+                logger(LOG_LEVEL_INFO, "Sent IDs.");
+                ids_string[0] = '\0'; // Reset the string to empty
+                current_size = 0; // Reset the size counter
+            }
+
+            // Append the ID and a separator to the string
+            strcat(ids_string, message_ids[i]);
+            strcat(ids_string, IDS_SEPARATOR);
+            free(message_ids[i]); // free the memory allocated for this ID
+        }
+
+        // Append the last_id if it's provided and there's enough space
+        if (last_id != NULL && current_size + strlen(last_id) < MAX_RESPONSE_LENGTH - 256) {
+            strcat(ids_string, last_id);
+            strcat(ids_string, IDS_SEPARATOR);
+        }
+
+        // Send any remaining IDs that didn't fill up the last message
+        if (ids_string[0] != '\0') {
+            while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, strlen(ids_string)) < 0) {
+                if (errno == EAGAIN) {
+                    logger(LOG_LEVEL_ERROR, "Timeout occurred while sending IDs.");
+                    continue;
+                } else {
+                    logger(LOG_LEVEL_ERROR, "Error occurred while sending IDs.");
+                    break;
+                }
+            }
+            logger(LOG_LEVEL_INFO, "Sent IDs.");
+        }
+
+        free(ids_string); // free the buffer
+        free(message_ids); // free the array itself
+        message_ids = NULL; // reset the pointer
+        num_message_ids = 0; // reset the counter
+    }
+
+    pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex
+}
+
+
+/**
+ * @brief Add a message ID to the list of IDs received since the last heartbeat
+ * @param id_str
+ */
+void add_message_id(const char *id_str) {
+    pthread_mutex_lock(&message_ids_mutex); // ensure thread safety
+    message_ids = realloc(message_ids, sizeof(char *) * (num_message_ids + 1)); // expand the array
+    if (message_ids == NULL) {
+        logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
+        return;
+    }
+    message_ids[num_message_ids] = strdup(id_str); // store a copy of the ID
+    num_message_ids++;
+    pthread_mutex_unlock(&message_ids_mutex);
+}
+
+/**
+ * @brief Delete message IDs from the list of IDs received since the last heartbeat
+ * @param response the response from the server (comma-separated list of IDs)
+ */
+void delete_message_ids_from_buffer(char *response) {
+    assert(response != NULL); // Ensure response is valid
+
+    pthread_mutex_lock(&message_ids_mutex); // Lock the mutex
+
+    // Find the position of the last_id in the response
+    char *last_id_start = strrchr(response, IDS_SEPARATOR[0]); // Find the last comma in the response
+    if (!last_id_start) {
+        // Handle the case where there's no comma in the response (i.e., one ID or none)
+        last_id_start = response;
+    } else {
+        last_id_start++; // Move past the comma
+    }
+
+    // Copy last_id into a separate buffer since strtok will modify the original string
+    char last_id[MAX_RESPONSE_LENGTH];
+    strncpy(last_id, last_id_start, sizeof(last_id));
+    last_id[sizeof(last_id) - 1] = '\0'; // Ensure null termination
+
+    // Now, we split the response and process each ID until we reach last_id
+    bool reached_last_id = false;
+    int remaining_ids_index = 0; // Index for appending remaining IDs
+    char *token = strtok(response, IDS_SEPARATOR);
+    while (token != NULL && !reached_last_id) {
+        if (strcmp(token, last_id) == 0) {
+            reached_last_id = true; // We've found the last_id, so we stop after this
+        } else {
+            // If this ID is not the last_id, we need to check if it's in the global list
+            bool found = false;
+            for (int i = 0; i < num_message_ids; ++i) {
+                if (strcmp(message_ids[i], token) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                // If the ID is not in the list, we keep it
+                message_ids[remaining_ids_index++] = strdup(token);
+            }
+        }
+
+        token = strtok(NULL, IDS_SEPARATOR); // Get the next token
+    }
+
+    // Now, append the IDs after the last_id from the original message_ids list
+    for (int i = 0; i < num_message_ids; ++i) {
+        if (strcmp(message_ids[i], last_id) > 0) { // Check if this ID is after the last_id
+            message_ids[remaining_ids_index++] = strdup(message_ids[i]);
+        }
+        free(message_ids[i]); // Free each string since we've duplicated the ones we're keeping
+    }
+
+    // Update the count of message IDs
+    num_message_ids = remaining_ids_index;
+
+    pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex
+}
+
 
 /**
  * @brief Handle the keyboard interruption (Ctrl+C)

@@ -8,10 +8,10 @@
 #include "common/config.h"
 #include "common/zhelpers.h"
 #include "common/logger.h"
+#include "common/qos.h"
 
 #ifdef REALMQ_VERSION
 
-#include "common/qos.h"
 #include "common/message_queue.h"
 
 #endif
@@ -55,6 +55,12 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 
     double message_id = getCurrentTimeValue(NULL);
 
+    // Convert double to string
+    char *message_id_str = malloc(20 * sizeof(char));
+    sprintf(message_id_str, "%f", message_id);
+    // Store the ID
+    add_message_id(message_id_str);
+
     // use unique id for each message based time_millis
     json_object_object_add(json_msg, "id", json_object_new_double(message_id));
     json_object_object_add(json_msg, "message", json_object_new_string(message));
@@ -85,8 +91,8 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
 #ifdef REALMQ_VERSION
     zmq_send_group(socket, get_group(MAIN_GROUP), json_str, 0);
 
-    // Enqueue the message after it's sent
-    enqueue_message(message_id, send_time);
+//    // Enqueue the message after it's sent
+//    enqueue_message(message_id, send_time);
 #else
     zmq_send(socket, json_str, strlen(json_str), 0);
 
@@ -95,35 +101,47 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Check if the message was sent successfully
     zmq_recv(socket, message, sizeof(message), 0);
 
-    // check if message response is the same as the message_id
-    if (atof(message) != message_id) {
-        logger(LOG_LEVEL_ERROR, "Message response is not the same as the sent message");
-    } else {
-        // Increment the counter of messages sent correctly
-        sem_wait(&mutex);
-        message_sent_correctly++;
-        sem_post(&mutex);
-    }
-
 #endif
 //    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
+
 }
 
 #ifdef REALMQ_VERSION
 
 // Function to be executed by the response handling thread
-void *response_handler(void *socket) {
-    // TODO: need to check the message payload for response (64 should be enough anyway)
-    int recv_len = 64;
-    char response[recv_len];
+void *response_handler(void *arg) {
+    void *socket = (void *) arg;
+
+    if (socket == NULL) {
+        logger(LOG_LEVEL_ERROR, "Responder Socket is NULL");
+        return NULL;
+    }
+
+    char response[MAX_RESPONSE_LENGTH];
 
     while (!interrupted) {
-        if (zmq_recv(socket, response, recv_len, 0) > 0) {
-            double id = atof(response);
-            dequeue_message(id);
-            logger(LOG_LEVEL_INFO, "Received response: %s", response);
+        // Clear the response buffer before receiving new data
+        memset(response, 0, sizeof(response));
+
+        // Receive response from server
+        int recv_len = zmq_recv(socket, response, MAX_RESPONSE_LENGTH - 1, 0); // -1 to allow space for null-terminator
+        if (recv_len > 0) {
+            // Ensure null-termination of the response string
+            response[recv_len] = '\0';
+
+            // Process the response and delete the message IDs from the global list
+            delete_message_ids_from_buffer(response);
+
+        } else if (errno == EAGAIN) {
+            // No response received, try again
+            continue;
+        } else {
+            // Some other error occurred
+            logger(LOG_LEVEL_ERROR, "Error receiving response from server: %s", strerror(errno));
+            break;
         }
     }
+
     return NULL;
 }
 
@@ -230,25 +248,25 @@ int main() {
     logger(LOG_LEVEL_INFO, get_configuration());
 
 #ifdef REALMQ_VERSION
-    // Initialize message queue
-    initialize_message_queue();
+    //    // Initialize message queue
+    //    initialize_message_queue();
 
-    // Initialize the RESPONDER handling thread
-    void *response_context = create_context();
-    void *response_socket = create_socket(
-            response_context,
-            ZMQ_DISH,
-            get_address(RESPONDER),
-            config.signal_msg_timeout,
-            get_group(RESPONDER_GROUP)
-    );
+        // Initialize the RESPONDER handling thread
+        void *response_context = create_context();
+        void *response_socket = create_socket(
+                response_context,
+                ZMQ_DISH,
+                get_address(RESPONDER),
+                config.signal_msg_timeout,
+                get_group(RESPONDER_GROUP)
+        );
 
-    // Subscribe to all messages
-    pthread_t response_thread;
-    if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
-        fprintf(stderr, "Error creating thread\n");
-        return 1;
-    }
+        // Subscribe to all messages
+        pthread_t response_thread;
+        if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
+            fprintf(stderr, "Error creating thread\n");
+            return 1;
+        }
 #endif
 
     // Print the initial configuration for the client
@@ -272,14 +290,14 @@ int main() {
     logger(LOG_LEVEL_DEBUG, "Messages sent correctly: %ld", message_sent_correctly);
 
 #ifdef REALMQ_VERSION
-    // Finalize message queue
-    finalize_message_queue();
+    //    // Finalize message queue
+    //    finalize_message_queue();
 
-    // Finalize the RESPONDER handling thread
-    zmq_close(response_socket);
-    zmq_ctx_destroy(response_context);
+        // Finalize the RESPONDER handling thread
+        zmq_close(response_socket);
+        zmq_ctx_destroy(response_context);
 
-    pthread_join(response_thread, NULL);
+        pthread_join(response_thread, NULL);
 #endif
 
     // Release the configuration

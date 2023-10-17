@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h> // for sleep()
 #include "../common/zhelpers.h"
+#include "../common/utils.h"
 
 int main(void) {
     printf("Server started\n");
@@ -30,15 +31,22 @@ int main(void) {
         if (strncmp(buffer, "HB", 2) == 0) {
             // Heartbeat received
             printf("Heartbeat received\n");
+            // last id received
+            char* last_id = message_ids[num_message_ids - 1];
+            process_message_ids(radio, last_id);
             continue;
         }
 
+        // This is the case of a message received from a client
         buffer[rc] = '\0'; // Null-terminate the string
         printf("Received from client [MAIN]: %s\n", buffer);
 
-        // Send a reply
-        const char *msg = "Message sent from server [RESPONDER]";
-        zmq_send_group(radio, "REP", msg, 0);
+        // Should be a double in string format
+        add_message_id(buffer);
+
+//        // Send a reply
+//        const char *msg = "Message sent from server [RESPONDER]";
+//        zmq_send_group(radio, "REP", msg, 0);
     }
 
     zmq_close(radio);

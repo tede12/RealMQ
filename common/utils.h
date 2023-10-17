@@ -16,13 +16,31 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <libgen.h>
+#include <pthread.h>
+#include <assert.h>
 
 // Flag to indicate if keyboard interruption has been received
 extern volatile sig_atomic_t interrupted;
 // Get the date + time for the filename
 extern char *date_time;
 
+// List of IDs received since the last heartbeat
+extern char **message_ids;
+extern size_t num_message_ids;
+extern const int MAX_RESPONSE_LENGTH;
+extern char *IDS_SEPARATOR;
+extern pthread_mutex_t message_ids_mutex; // Mutex to protect message_ids
+
 typedef struct timespec timespec;
+
+// Function that process the IDs received since the last heartbeat and send them back to the client
+void process_message_ids(void *responder, char* last_id);
+
+// Function to add a message ID to the list of IDs received since the last heartbeat
+void add_message_id(const char *id_str);
+
+// Function to delete message IDs from the list of IDs received since the last heartbeat
+void delete_message_ids_from_buffer(char *response);
 
 // Function to handle keyboard interrupt
 void handle_interrupt(int sig);

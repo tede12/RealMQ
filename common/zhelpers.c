@@ -80,7 +80,7 @@ ProtocolType get_protocol_type(int socket_type) {
  * @param timeout
  * @return
  */
-void *create_socket(void *context, int socket_type, const char *connection, int timeout, char *socket_group) {
+void *create_socket(void *context, int socket_type, const char *connection, int timeout, const  char *socket_group) {
     /* Explanation of all steps for configuring a socket:
     1. TCP/UDP - [Create] a new socket
     2. TCP/UDP     - [Connect] or [bind] the socket

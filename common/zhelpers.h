@@ -54,7 +54,7 @@ void *create_context();
 
 ProtocolType get_protocol_type(int socket_type);
 
-void *create_socket(void *context, int socket_type, const char *connection, int timeout, char *socket_group);
+void *create_socket(void *context, int socket_type, const char *connection, int timeout, const char *socket_group);
 
 int zmq_send_group(void *socket, const char *group, const char *msg, int flags);
 

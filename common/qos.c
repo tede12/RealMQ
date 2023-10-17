@@ -93,13 +93,13 @@ void send_heartbeat(void *socket, const char *group) {
         if (zmq_send_group(socket, group, heartbeat_message, 0) < 0) {
             logger(LOG_LEVEL_ERROR, "Failed to send heartbeat: %s", zmq_strerror(errno));
         } else {
-            logger(LOG_LEVEL_INFO2, "Heartbeat sent");
+//            logger(LOG_LEVEL_INFO2, "Heartbeat sent");
         }
 
         // Update the parameters of the Phi Accrual Failure Detector
         update_phi_accrual_failure_detector(current_time);
     } else {
-        logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
+//        logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
     }
 }
 

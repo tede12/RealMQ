@@ -22,7 +22,7 @@ char *get_address(AddressType address_type) {
     const char *address;
     switch (address_type) {
         case RESPONDER:
-            address = config.responder_address; // Use the correct address here
+            address = config.responder_address;
             break;
         case MAIN_ADDRESS:
             address = config.main_address;
