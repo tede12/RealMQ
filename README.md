@@ -14,6 +14,7 @@ the [pub/sub pattern](https://zguide.zeromq.org/docs/chapter5/) of *ZeroMQ*.
    a series of benchmarks.
 
 ## Installation
+
 The document that describes the installation process can be found [here](docs/INSTALLATION.md).
 
 ## Enhancements
@@ -157,15 +158,15 @@ as:
 $`\phi(t_{\text{now}}) \stackrel{\text{def}}{=} -\log_{10}\left( P_{\text{later}}(t_{\text{now}} - T_{\text{last}}) \right)`$
 
 _Here, `Plater(t)` represents the probability of a heartbeat arriving later than time `t` based on the historical
-inter-arrival time distribution. A higher `φ` value indicates a higher suspicion that the monitored process has crashed._  
+inter-arrival time distribution. A higher `φ` value indicates a higher suspicion that the monitored process has
+crashed._
 
-
-In simpler terms, the `φ` value helps us determine how likely it is that we've made an incorrect assumption about a 
-process being down when it might just be delayed. For example, if we set a certain limit, let's say `φ = 1`, and decide 
-to suspect a process of failure when `φ` reaches or exceeds this limit, there's roughly a 10% chance we could be 
-wrong—meaning, a late heartbeat could eventually arrive to prove the process is still alive. Similarly, if we adjust 
-the limit to `φ = 2`, the chance of being mistaken drops to about 1%. With `φ = 3`, the error probability reduces 
-further to around 0.1%. The pattern continues in this manner, with the likelihood of error shrinking as the `φ` 
+In simpler terms, the `φ` value helps us determine how likely it is that we've made an incorrect assumption about a
+process being down when it might just be delayed. For example, if we set a certain limit, let's say `φ = 1`, and decide
+to suspect a process of failure when `φ` reaches or exceeds this limit, there's roughly a 10% chance we could be
+wrong—meaning, a late heartbeat could eventually arrive to prove the process is still alive. Similarly, if we adjust
+the limit to `φ = 2`, the chance of being mistaken drops to about 1%. With `φ = 3`, the error probability reduces
+further to around 0.1%. The pattern continues in this manner, with the likelihood of error shrinking as the `φ`
 threshold increases.
 
 ### Threshold Adjustment
@@ -175,12 +176,12 @@ for packet loss. For example, if the network is experiencing intermittent packet
 to reduce the likelihood of false positives. Similarly, if the application can tolerate a certain amount of packet
 loss, the threshold can be adjusted accordingly.
 
-Choosing the optimal `φ` threshold is a critical decision. The authors of the original paper provide insights 
+Choosing the optimal `φ` threshold is a critical decision. The authors of the original paper provide insights
 through **Exp. 1** and **Exp. 2**.  
-Briefly, **Exp. 1** showcases how the mistake rate fluctuates with varying `φ` 
-threshold using the φ failure detector, while **Exp. 2** illustrates the change in detection time. Both figures give 
-valuable insights into how the choice of the `φ` threshold impacts the performance of the φ failure detector in terms 
-of mistake rate and detection time. 
+Briefly, **Exp. 1** showcases how the mistake rate fluctuates with varying `φ`
+threshold using the φ failure detector, while **Exp. 2** illustrates the change in detection time. Both figures give
+valuable insights into how the choice of the `φ` threshold impacts the performance of the φ failure detector in terms
+of mistake rate and detection time.
 
 <div align="center">
   <p><b>Threshold Experiments</b></p>
@@ -193,13 +194,22 @@ of mistake rate and detection time.
 
 ## The Increasing Timeout Algorithm
 
-The "Increasing Timeout" algorithm is an integral component of the heartbeat-based failure detection mechanism. 
-This algorithm, specifically designed for distributed systems, continually adjusts the timeout interval to accommodate 
+The "Increasing Timeout" algorithm is an integral component of the heartbeat-based failure detection mechanism.
+This algorithm, specifically designed for distributed systems, continually adjusts the timeout interval to accommodate
 varying network conditions, enhancing the reliability of failure detection.
 
-### Key symbols
+### Steps of the Algorithm
 
-- $`∆_i`$: Interval between heartbeats
-- $`∆_to`$: Timeout interval
-- todo...
+1. Heartbeat Sampling:
+   Every heartbeat message from the monitored process (`p`) is tagged with a sequence number. The monitoring
+   process (`q`) maintains these heartbeat arrival times within a fixed-size sampling window `WS`. Arrival intervals are
+   computed from this window, and to maintain the mean `μ` and variance `σ^2`, the sum and sum of squares for all
+   samples in the window are tracked.
+2. Distribution Estimation and φ Computation:
+   Inter-arrival times are believed to be normally distributed. The distribution parameters are deduced from the
+   sampling window, extracting the mean `μ` and variance `σ^2` from samples. The probability $`P_{later}(t)`$ which
+   signifies the likelihood that a heartbeat will be delayed by over t time units from its predecessor is computed using
+   the formula below:  
+   $`P_{later}(t) = \frac{1}{\sigma\sqrt{2\pi}} \int_{t}^{+\infty} e^{-\frac{(x-\mu)^2}{2\sigma^2}} \, dx = 1 - F(t)`$
+   _Here, `F(t)` is the cumulative distribution function of a normal distribution with mean `μ` and variance `σ^2`._
 

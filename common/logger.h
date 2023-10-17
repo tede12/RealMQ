@@ -26,6 +26,7 @@
 typedef enum {
     LOG_LEVEL_DEBUG = 0,
     LOG_LEVEL_INFO = 1,
+    LOG_LEVEL_INFO2 = 6,    // Colored info more visible
     LOG_LEVEL_WARN = 2,
     LOG_LEVEL_ERROR = 3,
     LOG_LEVEL_FATAL = 4,
@@ -53,6 +54,8 @@ typedef struct Logger loggerType;
 void logger(LogLevel level, const char *format, ...);
 
 void Logger_init(const char *name, logConfig *config, Logger *my_logger);
+
+void log_internal(int level, const char *format, va_list args);
 
 void release_logger();
 

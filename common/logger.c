@@ -34,12 +34,16 @@ void log_internal(int level, const char *format, va_list args) {
 
     char final_msg[1280];
     char *string_level;
-    char* color;
+    char *color;
     switch (level) {
 
         case LOG_LEVEL_INFO:
             string_level = strdup("INFO");
             color = NULL;
+            break;
+        case LOG_LEVEL_INFO2:
+            string_level = strdup("INFO");
+            color = ANSI_COLOR_BLUE;
             break;
         case LOG_LEVEL_ERROR:
             string_level = strdup("ERROR");
@@ -74,7 +78,8 @@ void log_internal(int level, const char *format, va_list args) {
     if (global_logger.config.log_to_console) {
         // Print to console
         if (color != NULL) {
-            printf("%s[%s%s%s]%s%s%s%s\n", prefix, color, string_level, ANSI_COLOR_RESET, thread_id, color, buffer, ANSI_COLOR_RESET);
+            printf("%s[%s%s%s]%s%s%s%s\n", prefix, color, string_level, ANSI_COLOR_RESET, thread_id, color, buffer,
+                   ANSI_COLOR_RESET);
         } else {
             printf("%s\n", final_msg);
         }

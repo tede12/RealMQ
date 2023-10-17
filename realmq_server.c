@@ -80,6 +80,13 @@ void *server_thread(void *args) {
         }
         double recv_time = getCurrentTimeValue(NULL);
 
+        // Check if prefix of the message is "HB" (heartbeat)
+        if (strncmp(message, "HB", 2) == 0) {
+            // Heartbeat received
+            logger(LOG_LEVEL_INFO, "Heartbeat received");
+            continue;
+        }
+
         // Process the received message
         handle_message(message);
 
