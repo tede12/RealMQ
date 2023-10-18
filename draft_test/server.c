@@ -91,7 +91,7 @@ int main(void) {
 
         // This is the case of a message received from a client
         buffer[rc] = '\0'; // Null-terminate the string
-        printf("Received from client [MAIN]: %s\n", buffer);
+//        printf("Received from client [MAIN]: %s\n", buffer);
 
         // Should be a double in string format
         add_message_id(buffer);

@@ -20,7 +20,7 @@
 
 
 #define HEARTBEAT_INTERVAL 2 // Interval between heartbeats (in seconds)
-#define PHI_THRESHOLD 5.0    // Threshold of the phi value to consider a disconnection
+#define PHI_THRESHOLD 2.0    // Threshold of the phi value to consider a disconnection
 #define WINDOW_SIZE 10       // Size of the window for the samples, used in the rolling mean and variance
 
 // Global variables to store the times of the last heartbeats
@@ -28,6 +28,8 @@ time_t last_heartbeat_times[WINDOW_SIZE];
 int last_heartbeat_index = 0;
 double mean = HEARTBEAT_INTERVAL;
 double variance = 0.0;
+
+bool log_heartbeat = false;
 
 /**
  * Function to calculate the Phi value based on the current time.
@@ -93,13 +95,13 @@ void send_heartbeat(void *socket, const char *group, bool force_send) {
         if (zmq_send_group(socket, group, heartbeat_message, 0) < 0) {
             logger(LOG_LEVEL_ERROR, "Failed to send heartbeat: %s", zmq_strerror(errno));
         } else {
-            logger(LOG_LEVEL_INFO2, "Heartbeat sent");
+            if (log_heartbeat) logger(LOG_LEVEL_INFO2, "Heartbeat sent");
         }
 
         // Update the parameters of the Phi Accrual Failure Detector
         update_phi_accrual_failure_detector(current_time);
     } else {
-        logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
+        if (log_heartbeat) logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
     }
 }
 

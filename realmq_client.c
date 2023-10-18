@@ -139,7 +139,7 @@ void *response_handler(void *arg) {
         } else {
             // Some other error occurred
             logger(LOG_LEVEL_ERROR, "Error receiving response from server: %s", strerror(errno));
-            break;
+            continue;
         }
     }
 
