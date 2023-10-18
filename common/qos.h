@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-void send_heartbeat(void *socket, const char *group);
+void send_heartbeat(void *socket, const char *group, bool force_send);
 
 void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type);
 

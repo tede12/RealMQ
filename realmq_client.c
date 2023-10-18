@@ -117,20 +117,21 @@ void *response_handler(void *arg) {
         return NULL;
     }
 
-    char response[MAX_RESPONSE_LENGTH];
 
     while (!interrupted) {
-        // Clear the response buffer before receiving new data
-        memset(response, 0, sizeof(response));
+        char buffer[MAX_RESPONSE_LENGTH];
 
         // Receive response from server
-        int recv_len = zmq_recv(socket, response, MAX_RESPONSE_LENGTH - 1, 0); // -1 to allow space for null-terminator
+        int recv_len = zmq_recv(socket, buffer, MAX_RESPONSE_LENGTH - 1, 0); // -1 to allow space for null-terminator
         if (recv_len > 0) {
             // Ensure null-termination of the response string
-            response[recv_len] = '\0';
+            buffer[recv_len] = '\0';
 
             // Process the response and delete the message IDs from the global list
-            delete_message_ids_from_buffer(response);
+            size_t missed_count = 0;
+            char **missed_ids = process_missed_message_ids(buffer, &missed_count);
+            logger(LOG_LEVEL_WARN, "Missed messages: %zu", missed_count);
+            // todo resend messages missed
 
         } else if (errno == EAGAIN) {
             // No response received, try again
@@ -170,7 +171,7 @@ void *client_thread(void *thread_id) {
     while (messages_sent < config.num_messages && !interrupted) {
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
-        send_heartbeat(socket, get_group(MAIN_GROUP));  // Refer to common/qos.c
+        send_heartbeat(socket, get_group(MAIN_GROUP), false);  // Refer to common/qos.c
 #endif
 
         if (config.use_msg_per_minute) {
@@ -213,6 +214,11 @@ void *client_thread(void *thread_id) {
 
     }
 
+#ifdef REALMQ_VERSION
+    // Send last heartbeat for synchronization before exiting
+    send_heartbeat(socket, get_group(MAIN_GROUP), true);  // Refer to common/qos.c
+#endif
+
     zmq_close(socket);
     zmq_ctx_destroy(context);
 
@@ -251,22 +257,22 @@ int main() {
     //    // Initialize message queue
     //    initialize_message_queue();
 
-        // Initialize the RESPONDER handling thread
-        void *response_context = create_context();
-        void *response_socket = create_socket(
-                response_context,
-                ZMQ_DISH,
-                get_address(RESPONDER),
-                config.signal_msg_timeout,
-                get_group(RESPONDER_GROUP)
-        );
+    // Initialize the RESPONDER handling thread
+    void *response_context = create_context();
+    void *response_socket = create_socket(
+            response_context,
+            ZMQ_DISH,
+            get_address(RESPONDER),
+            config.signal_msg_timeout,
+            get_group(RESPONDER_GROUP)
+    );
 
-        // Subscribe to all messages
-        pthread_t response_thread;
-        if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
-            fprintf(stderr, "Error creating thread\n");
-            return 1;
-        }
+    // Subscribe to all messages
+    pthread_t response_thread;
+    if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
+        fprintf(stderr, "Error creating thread\n");
+        return 1;
+    }
 #endif
 
     // Print the initial configuration for the client
@@ -293,11 +299,11 @@ int main() {
     //    // Finalize message queue
     //    finalize_message_queue();
 
-        // Finalize the RESPONDER handling thread
-        zmq_close(response_socket);
-        zmq_ctx_destroy(response_context);
+    // Finalize the RESPONDER handling thread
+    zmq_close(response_socket);
+    zmq_ctx_destroy(response_context);
 
-        pthread_join(response_thread, NULL);
+    pthread_join(response_thread, NULL);
 #endif
 
     // Release the configuration

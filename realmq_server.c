@@ -14,7 +14,7 @@
 
 
 // ---------------------------------------- Global configuration -------------------------------------------------------
-Logger client_logger;
+Logger server_logger;
 
 // Variables for periodic statistics saving
 json_object *json_messages = NULL; // Added to store all messages
@@ -88,7 +88,7 @@ void *server_thread(void *args) {
             logger(LOG_LEVEL_INFO, "Heartbeat received");
 
             // last id received
-            char* last_id = message_ids[num_message_ids - 1];
+            char *last_id = get_message_id(-1);
             process_message_ids(responder, last_id);
             continue;
         }
@@ -220,7 +220,7 @@ int main() {
             .log_level = LOG_LEVEL_INFO
     };
 
-    Logger_init("realmq_sever", &logger_config, &client_logger);
+    Logger_init("realmq_sever", &logger_config, &server_logger);
 
 
     if (read_config("../config.yaml") != 0) {

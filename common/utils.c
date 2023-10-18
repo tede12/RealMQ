@@ -13,6 +13,10 @@ pthread_mutex_t message_ids_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex to prote
 const int MAX_RESPONSE_LENGTH = 1024;
 char *IDS_SEPARATOR = ",";
 
+// sizeof(double) could be 8, but It's string representation could be 20 characters
+#define ID_MAX_LENGTH 21 // Maximum length of an ID (20 characters for double and 1 for '\0')
+
+// ====================================== Message Manipulation =========================================================
 
 /**
  * @brief Process the IDs received since the last heartbeat and send them back to the client
@@ -23,57 +27,66 @@ void process_message_ids(void *responder, char *last_id) {
     pthread_mutex_lock(&message_ids_mutex); // ensure thread safety
 
     if (num_message_ids > 0) {
-        size_t current_size = 0;
-        char *ids_string = malloc(MAX_RESPONSE_LENGTH); // buffer for each message
+        size_t id_with_separator_length = ID_MAX_LENGTH + strlen(IDS_SEPARATOR);
+        size_t max_ids_per_message = (MAX_RESPONSE_LENGTH - strlen(IDS_SEPARATOR)) /
+                                     id_with_separator_length; // minus one separator for last_id
+
+        char *ids_string = malloc(MAX_RESPONSE_LENGTH);
         if (ids_string == NULL) {
-            logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
+            logger(LOG_LEVEL_ERROR, "Memory allocation error.");
+            pthread_mutex_unlock(&message_ids_mutex);
             return;
         }
-        ids_string[0] = '\0'; // start with an empty string
+
+        size_t current_id_count = 0;
+        ids_string[0] = '\0'; // Start with an empty string
 
         for (size_t i = 0; i < num_message_ids; ++i) {
-            current_size += strlen(message_ids[i]) + strlen(IDS_SEPARATOR); // +1 for separator
-
-            // Check if adding the next ID would exceed the max length
-            if (current_size + ((last_id != NULL) ? strlen(last_id) : 0) >= MAX_RESPONSE_LENGTH) {
-                // Send the current string of IDs before it gets too large
-                while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, strlen(ids_string)) < 0) {
-                    if (errno == EAGAIN) {
-                        logger(LOG_LEVEL_ERROR, "Timeout occurred while sending IDs.");
-                        continue;
-                    } else {
-                        logger(LOG_LEVEL_ERROR, "Error occurred while sending IDs.");
-                        break;
-                    }
-                }
-                logger(LOG_LEVEL_INFO, "Sent IDs.");
-                ids_string[0] = '\0'; // Reset the string to empty
-                current_size = 0; // Reset the size counter
+            if (current_id_count > 0) {
+                strcat(ids_string, IDS_SEPARATOR);
             }
 
-            // Append the ID and a separator to the string
             strcat(ids_string, message_ids[i]);
-            strcat(ids_string, IDS_SEPARATOR);
+            current_id_count++;
+
+            if (current_id_count == max_ids_per_message || (i == num_message_ids - 1 && last_id)) {
+                if (i == num_message_ids - 1 && last_id) {
+                    strcat(ids_string, IDS_SEPARATOR);
+                    strcat(ids_string, last_id);
+                }
+
+                // Send the current string of IDs
+                while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, 0) < 0) {
+                    if (errno == EAGAIN) {
+                        logger(LOG_LEVEL_ERROR, "Timeout occurred while sending IDs.");
+                        continue; // Or apply your desired logic for timeouts
+                    } else {
+                        logger(LOG_LEVEL_ERROR, "Error occurred while sending IDs.");
+                        break; // Or handle other types of errors as you see fit
+                    }
+                }
+
+                logger(LOG_LEVEL_INFO, "Sent IDs.");
+
+                ids_string[0] = '\0'; // Reset the string to empty
+                current_id_count = 0; // Reset the ID counter
+            }
+
             free(message_ids[i]); // free the memory allocated for this ID
         }
 
-        // Append the last_id if it's provided and there's enough space
-        if (last_id != NULL && current_size + strlen(last_id) < MAX_RESPONSE_LENGTH - 256) {
-            strcat(ids_string, last_id);
-            strcat(ids_string, IDS_SEPARATOR);
-        }
-
-        // Send any remaining IDs that didn't fill up the last message
-        if (ids_string[0] != '\0') {
-            while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, strlen(ids_string)) < 0) {
+        if (ids_string[0] != '\0' && current_id_count > 0) {
+            // Send remaining IDs
+            while (zmq_send_group(responder, get_group(RESPONDER_GROUP), ids_string, 0) < 0) {
                 if (errno == EAGAIN) {
                     logger(LOG_LEVEL_ERROR, "Timeout occurred while sending IDs.");
-                    continue;
+                    continue; // Or apply your desired logic for timeouts
                 } else {
                     logger(LOG_LEVEL_ERROR, "Error occurred while sending IDs.");
-                    break;
+                    break; // Or handle other types of errors as you see fit
                 }
             }
+
             logger(LOG_LEVEL_INFO, "Sent IDs.");
         }
 
@@ -84,6 +97,50 @@ void process_message_ids(void *responder, char *last_id) {
     }
 
     pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex
+}
+
+
+/**
+ * @brief Get the message ID at the given index (negative index means from the end)
+ * @param index
+ * @return char*
+ */
+char *get_message_id(int index) {
+    char *msg_id = NULL;
+
+    pthread_mutex_lock(&message_ids_mutex); // ensure thread safety
+
+    if (num_message_ids == 0) {
+        // There are no messages in the array.
+        pthread_mutex_unlock(&message_ids_mutex);
+        return NULL; // Or handle it as appropriate for your program
+    }
+
+    // Check for potential underflow.
+    if (index < 0 && (size_t) (-index) > num_message_ids) {
+        // The index is too negative and would underflow.
+        pthread_mutex_unlock(&message_ids_mutex);
+        return NULL; // Or handle it as appropriate for your program
+    }
+
+    size_t adjusted_index;
+    if (index < 0) {
+        // Safe because we already checked for underflow.
+        adjusted_index = num_message_ids - (size_t) (-index);
+    } else {
+        adjusted_index = (size_t) index;
+    }
+
+    // Check if the index is within bounds.
+    if (adjusted_index < num_message_ids) {
+        msg_id = message_ids[adjusted_index];
+    } else {
+        // Index is out of bounds.
+        msg_id = NULL; // Or handle it as appropriate for your program
+    }
+
+    pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex
+    return msg_id;
 }
 
 
@@ -103,68 +160,144 @@ void add_message_id(const char *id_str) {
     pthread_mutex_unlock(&message_ids_mutex);
 }
 
+
 /**
- * @brief Delete message IDs from the list of IDs received since the last heartbeat
- * @param response the response from the server (comma-separated list of IDs)
+ * @brief Splits a string by a delimiter and returns an array of tokens.
+ * @param str The string to split.
+ * @param delim The delimiter character.
+ * @param num_tokens Output parameter to hold the number of tokens.
+ * @return char** A dynamically-allocated array of strings. Free each element and the array itself after use.
  */
-void delete_message_ids_from_buffer(char *response) {
-    assert(response != NULL); // Ensure response is valid
+char **split_string(const char *str, const char delim, size_t *num_tokens) {
+    *num_tokens = 0;
 
-    pthread_mutex_lock(&message_ids_mutex); // Lock the mutex
+    // First, count the number of tokens.
+    const char *ptr = str;
+    while (*ptr) {
+        if (*ptr == delim) {
+            (*num_tokens)++;
+        }
+        ptr++;
+    }
+    (*num_tokens)++; // One more for the last token.
 
-    // Find the position of the last_id in the response
-    char *last_id_start = strrchr(response, IDS_SEPARATOR[0]); // Find the last comma in the response
-    if (!last_id_start) {
-        // Handle the case where there's no comma in the response (i.e., one ID or none)
-        last_id_start = response;
-    } else {
-        last_id_start++; // Move past the comma
+    // Allocate memory for tokens.
+    char **tokens = malloc(*num_tokens * sizeof(char *));
+    if (!tokens) {
+        perror("Memory allocation error");
+        *num_tokens = 0;
+        return NULL;
     }
 
-    // Copy last_id into a separate buffer since strtok will modify the original string
-    char last_id[MAX_RESPONSE_LENGTH];
-    strncpy(last_id, last_id_start, sizeof(last_id));
-    last_id[sizeof(last_id) - 1] = '\0'; // Ensure null termination
+    size_t token_len = 0;
+    ptr = str; // Reset pointer to the start of the string.
+    for (size_t i = 0; i < *num_tokens; i++) {
+        const char *start = ptr; // Start of the token.
+        while (*ptr && *ptr != delim) {
+            token_len++;
+            ptr++;
+        }
 
-    // Now, we split the response and process each ID until we reach last_id
-    bool reached_last_id = false;
-    int remaining_ids_index = 0; // Index for appending remaining IDs
-    char *token = strtok(response, IDS_SEPARATOR);
-    while (token != NULL && !reached_last_id) {
-        if (strcmp(token, last_id) == 0) {
-            reached_last_id = true; // We've found the last_id, so we stop after this
-        } else {
-            // If this ID is not the last_id, we need to check if it's in the global list
-            bool found = false;
-            for (int i = 0; i < num_message_ids; ++i) {
-                if (strcmp(message_ids[i], token) == 0) {
-                    found = true;
-                    break;
+        tokens[i] = strndup(start, token_len);
+        if (!tokens[i]) {
+            perror("Memory allocation error");
+            // Free already allocated memory and reset counter.
+            for (size_t j = 0; j < i; j++) {
+                free(tokens[j]);
+            }
+            free(tokens);
+            *num_tokens = 0;
+            return NULL;
+        }
+
+        token_len = 0; // Reset for the next token.
+        if (*ptr) {
+            ptr++; // Skip the delimiter.
+        }
+    }
+
+    return tokens;
+}
+
+/**
+ * @brief Process the IDs received since the last heartbeat and return the missed ones.
+ * @param buffer The buffer containing IDs separated by commas, with the last one being the last acknowledged ID.
+ * @param missed_count A pointer to store the count of missed message IDs.
+ * @return char** Array of missed message IDs.
+ */
+char **process_missed_message_ids(const char *buffer, size_t *missed_count) {
+    pthread_mutex_lock(&message_ids_mutex); // Ensure thread safety while accessing shared data.
+
+    // Allocate memory for missed IDs.
+    char **missed_ids = NULL;
+    *missed_count = 0;
+
+    size_t num_ids_in_buffer;
+    char **ids_in_buffer = split_string(buffer, IDS_SEPARATOR[0], &num_ids_in_buffer);
+
+    if (!ids_in_buffer || num_ids_in_buffer == 0) {
+        fprintf(stderr, "Error: No IDs found in the buffer.\n");
+    } else {
+        // The last ID in the buffer is the last_id.
+        char *last_id = ids_in_buffer[num_ids_in_buffer - 1];
+
+        for (size_t i = 0; i < num_message_ids; ++i) {
+            if (strcmp(message_ids[i], last_id) >
+                0) { // If the current ID is "greater" than the last_id, it's considered "missed".
+                ++(*missed_count);
+                missed_ids = (char **) realloc(missed_ids, (*missed_count) * sizeof(char *));
+                if (!missed_ids) {
+                    perror("Memory allocation error");
+                    *missed_count = 0;
+                    break; // Break out of the loop in case of memory allocation failure.
+                } else {
+                    missed_ids[(*missed_count) - 1] = strdup(message_ids[i]);
                 }
             }
-
-            if (!found) {
-                // If the ID is not in the list, we keep it
-                message_ids[remaining_ids_index++] = strdup(token);
-            }
         }
 
-        token = strtok(NULL, IDS_SEPARATOR); // Get the next token
-    }
-
-    // Now, append the IDs after the last_id from the original message_ids list
-    for (int i = 0; i < num_message_ids; ++i) {
-        if (strcmp(message_ids[i], last_id) > 0) { // Check if this ID is after the last_id
-            message_ids[remaining_ids_index++] = strdup(message_ids[i]);
+        // Free the original message_ids after processing.
+        for (size_t i = 0; i < num_message_ids; ++i) {
+            free(message_ids[i]);
         }
-        free(message_ids[i]); // Free each string since we've duplicated the ones we're keeping
+        free(message_ids);
+        message_ids = NULL;
+        num_message_ids = 0;
+
+        // Free the split IDs from the buffer.
+        for (size_t i = 0; i < num_ids_in_buffer; ++i) {
+            free(ids_in_buffer[i]);
+        }
+        free(ids_in_buffer);
     }
+//    missed_count--;
 
-    // Update the count of message IDs
-    num_message_ids = remaining_ids_index;
+    pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex after processing.
 
-    pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex
+    return missed_ids; // Return the array of missed IDs.
 }
+
+/**
+ * Example of usage Message Manipulation
+    - Client responder thread:
+
+    size_t missed_count = 0;
+    char **missed_ids = process_missed_message_ids(buffer, &missed_count);
+
+    - Client publisher thread:
+
+    add_message_id(msg_id);
+
+    - Server thread:
+
+    if (strncmp(buffer, "HB", 2) == 0)
+        process_message_ids(radio, last_id);
+
+    add_message_id(buffer);
+ */
+
+
+// ============================================= Time Functions ========================================================
 
 
 /**

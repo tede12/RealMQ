@@ -73,7 +73,7 @@ void update_phi_accrual_failure_detector(time_t new_time) {
  * Phi Accrual Failure Detector parameters.
  * @param socket The socket to use for sending the message
  */
-void send_heartbeat(void *socket, const char *group) {
+void send_heartbeat(void *socket, const char *group, bool force_send) {
     time_t current_time = time(NULL);
 
     if (last_heartbeat_times[last_heartbeat_index] == 0) {
@@ -86,20 +86,20 @@ void send_heartbeat(void *socket, const char *group) {
     double phi = calculate_phi(current_time);
 
     // If it's the first heartbeat, or the phi value exceeds the threshold, send a heartbeat
-    if (last_heartbeat_times[last_heartbeat_index] == 0 || phi > PHI_THRESHOLD) {
+    if (last_heartbeat_times[last_heartbeat_index] == 0 || phi > PHI_THRESHOLD || force_send) {
         char heartbeat_message[] = "HB";
 
         // Send the heartbeat message
         if (zmq_send_group(socket, group, heartbeat_message, 0) < 0) {
             logger(LOG_LEVEL_ERROR, "Failed to send heartbeat: %s", zmq_strerror(errno));
         } else {
-//            logger(LOG_LEVEL_INFO2, "Heartbeat sent");
+            logger(LOG_LEVEL_INFO2, "Heartbeat sent");
         }
 
         // Update the parameters of the Phi Accrual Failure Detector
         update_phi_accrual_failure_detector(current_time);
     } else {
-//        logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
+        logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
     }
 }
 

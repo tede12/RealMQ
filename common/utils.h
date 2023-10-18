@@ -36,11 +36,14 @@ typedef struct timespec timespec;
 // Function that process the IDs received since the last heartbeat and send them back to the client
 void process_message_ids(void *responder, char* last_id);
 
+// Function to get message ID from the list of IDs using the index
+char *get_message_id(int index);
+
 // Function to add a message ID to the list of IDs received since the last heartbeat
 void add_message_id(const char *id_str);
 
-// Function to delete message IDs from the list of IDs received since the last heartbeat
-void delete_message_ids_from_buffer(char *response);
+// Function to process the missed message IDs
+char **process_missed_message_ids(const char *buffer, size_t *missed_count);
 
 // Function to handle keyboard interrupt
 void handle_interrupt(int sig);
