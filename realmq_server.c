@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <zmq.h>
@@ -7,10 +5,12 @@
 #include <unistd.h> // for sleep function
 #include <signal.h>
 #include <json-c/json.h>
-#include "common/utils.h"
-#include "common/config.h"
-#include "common/zhelpers.h"
-#include "common/logger.h"
+#include "utils/utils.h"
+#include "core/config.h"
+#include "core/zhelpers.h"
+#include "core/logger.h"
+#include "common/utils/time_utils.h"
+#include "common/utils/fs_utils.h"
 
 
 // ---------------------------------------- Global configuration -------------------------------------------------------
@@ -142,59 +142,6 @@ void *server_thread(void *args) {
     return NULL;
 }
 
-// Function for saving statistics to a file
-void save_stats_to_file() {
-    if (json_messages == NULL || json_object_array_length(json_messages) == 0) {
-        return;
-    }
-
-    char *fullPath = create_stats_path();
-
-    // Extract the folder path
-    char *folder = strdup(fullPath); // Duplicate fullPath because dirname can modify the input argument
-    char *dir = dirname(folder);
-    create_if_not_exist_folder(dir);
-
-    logger(LOG_LEVEL_DEBUG, "Saving statistics to file: %s", fullPath);
-
-    FILE *file = fopen(fullPath, "w");
-    free(fullPath);
-
-    if (file == NULL) {
-        logger(LOG_LEVEL_ERROR, "Impossibile aprire il file per la scrittura.");
-        return;
-    }
-
-    if (config.use_json) {
-        json_object *jobj = json_object_new_object();
-        json_object_object_add(jobj, "messages", json_messages);
-
-        const char *json_data = json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PRETTY);
-        fprintf(file, "%s\n", json_data);
-
-        // Clear json_messages
-        json_messages = json_object_new_array(); // Added to store all messages
-    } else {
-        // Write the CSV header
-        fprintf(file, "id,num,diff\n");
-
-        unsigned long array_len = json_object_array_length(json_messages);
-        for (unsigned int i = 0; i < array_len; i++) {
-            json_object *json_msg = json_object_array_get_idx(json_messages, i);
-
-            double diff = json_object_get_double(json_object_object_get(json_msg, "recv_time")) -
-                          json_object_get_double(json_object_object_get(json_msg, "send_time"));
-            if (json_msg) {
-                fprintf(file, "%s,%d,%f\n",
-                        json_object_get_string(json_object_object_get(json_msg, "id")),
-                        i + 1,
-                        diff
-                );
-            }
-        }
-    }
-    fclose(file);
-}
 
 // Function for handling periodic statistics saving
 void *stats_saver_thread(void *args) {
@@ -203,7 +150,7 @@ void *stats_saver_thread(void *args) {
         sleep(config.save_interval_seconds);
 
         // Save statistics to a file
-        save_stats_to_file();
+        save_stats_to_file(json_messages);
     }
     if (interrupted)
         logger(LOG_LEVEL_DEBUG, "***Exiting stats saver thread.");
@@ -250,7 +197,7 @@ int main() {
     pthread_join(stats_saver, NULL);
 
     // Save final statistics to a file
-    save_stats_to_file();
+    save_stats_to_file(json_messages);
 
     // Deallocate json_messages before exiting
     json_object_put(json_messages);

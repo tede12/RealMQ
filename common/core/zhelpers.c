@@ -1,6 +1,6 @@
 #include "zhelpers.h"
-#include "logger.h"
-#include "config.h"
+#include "core/logger.h"
+#include "core/config.h"
 
 //  Receive 0MQ string from socket and convert into C string
 //  Caller must free returned string. Returns NULL if the context

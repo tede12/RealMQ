@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h> // For sleep
-#include "logger.h"
-#include "utils.h"
+#include "core/logger.h"
+#include "utils/utils.h"
 
 // The flag to control the background thread's loop
 volatile bool keep_running = true;

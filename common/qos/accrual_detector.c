@@ -1,10 +1,8 @@
-#include "qos.h"
-#include "logger.h"
+#include "accrual_detector.h"
+#include "core/logger.h"
 #include <zmq.h>
-#include <string.h>
-#include <unistd.h>
-#include "config.h"
-#include "zhelpers.h"
+#include "core/config.h"
+#include "core/zhelpers.h"
 #include <math.h>
 #include <time.h>
 

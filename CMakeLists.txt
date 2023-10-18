@@ -16,9 +16,17 @@ add_definitions(-DREALMQ_VERSION)   # This is the version of RealMQ with QoS sup
 pkg_check_modules(CZMQ REQUIRED libczmq)
 pkg_check_modules(JSON-C REQUIRED json-c)
 pkg_check_modules(YAML REQUIRED yaml-0.1)
+pkg_check_modules(UUID REQUIRED uuid)
 
 # Include all directories
-include_directories(${ZMQ_INCLUDE_DIRS} ${CZMQ_INCLUDE_DIRS} ${JSON-C_INCLUDE_DIRS} ${YAML_INCLUDE_DIRS} common)
+include_directories(
+        ${ZMQ_INCLUDE_DIRS}
+        ${CZMQ_INCLUDE_DIRS}
+        ${JSON-C_INCLUDE_DIRS}
+        ${YAML_INCLUDE_DIRS}
+        ${UUID_INCLUDE_DIRS}
+        common
+)
 
 
 # ZeroMQ, CZMQ, JSON-C, and libyaml library paths
@@ -36,40 +44,58 @@ elseif (UNIX AND NOT APPLE)
 endif ()
 
 # Source files that need to be compiled
-set(SOURCE_FILES
-        common/qos.c
-        common/logger.c
-        common/message_queue.c
-        common/config.c
-        common/utils.c
-        common/zhelpers.c
-        )
+set(
+        SOURCE_FILES
+
+        # Common
+        common/string_manip.c
+
+        # Core
+        common/core/config.c
+        common/core/logger.c
+        common/core/zhelpers.c
+
+        # Qos
+        common/qos/accrual_detector.c
+        common/qos/message_queue.c
+
+        # Utils
+        common/utils/fs_utils.c
+        common/utils/utils.c
+        common/utils/time_utils.c
+        common/utils/utils.c
+)
 
 
-# Include common files
+# Include dirs
 include_directories(common)
+
+# Link libraries to executables
+function(target_link_libraries_realmq target)
+    target_link_libraries(${target}
+            ${ZMQ_LIBRARIES}
+            ${CZMQ_LIBRARIES}
+            ${JSON-C_LIBRARIES}
+            ${YAML_LIBRARIES}
+            ${UUID_LIBRARIES}
+            Threads::Threads
+            )
+endfunction()
 
 # Executables
 add_executable(realmq_client realmq_client.c ${SOURCE_FILES})
 add_executable(realmq_server realmq_server.c ${SOURCE_FILES})
 
+target_link_libraries_realmq(realmq_client)
+target_link_libraries_realmq(realmq_server)
+
 # ------------------------------- Test executables ---------------------------------------
 add_executable(client draft_test/client.c ${SOURCE_FILES})
 add_executable(server draft_test/server.c ${SOURCE_FILES})
-target_link_libraries(client ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES} Threads::Threads)
-target_link_libraries(server ${ZMQ_LIBRARIES} ${CZMQ_LIBRARIES} ${JSON-C_LIBRARIES} ${YAML_LIBRARIES} Threads::Threads)
+
+target_link_libraries_realmq(client)
+target_link_libraries_realmq(server)
 # ----------------------------------------------------------------------------------------
 
-target_link_libraries(realmq_client
-        ${ZMQ_LIBRARIES}
-        ${CZMQ_LIBRARIES}
-        ${JSON-C_LIBRARIES}
-        ${YAML_LIBRARIES}
-        Threads::Threads)
 
-target_link_libraries(realmq_server
-        ${ZMQ_LIBRARIES}
-        ${CZMQ_LIBRARIES}
-        ${JSON-C_LIBRARIES}
-        ${YAML_LIBRARIES}
-        Threads::Threads)
+

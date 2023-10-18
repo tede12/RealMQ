@@ -4,15 +4,17 @@
 #include <zmq.h>
 #include<semaphore.h>
 #include <time.h>
-#include "common/utils.h"
-#include "common/config.h"
-#include "common/zhelpers.h"
-#include "common/logger.h"
-#include "common/qos.h"
+#include "utils/utils.h"
+#include "core/config.h"
+#include "core/zhelpers.h"
+#include "core/logger.h"
+#include "qos/accrual_detector.h"
+#include "common/utils/time_utils.h"
+#include "common/string_manip.h"
 
 #ifdef REALMQ_VERSION
 
-#include "common/message_queue.h"
+#include "qos/message_queue.h"
 
 #endif
 
@@ -24,22 +26,7 @@ Logger client_logger;
 size_t message_sent_correctly = 0;
 sem_t mutex;  // semaphore to protect the counter
 
-// Function that returns a random string of the given size
-char *random_string(unsigned int string_size) {
-    // Generate a random ascii character between '!' (0x21) and '~' (0x7E) excluding '"'
-    char *random_string = malloc((string_size + 1) * sizeof(char)); // +1 for the null terminator
-    for (int i = 0; i < string_size; i++) {
-        do {
-            random_string[i] = (char) (rand() % (0x7E - 0x21) + 0x21); // start from '!' to exclude space
 
-        } while (
-            // regenerate if the character is a double quote or a backslash or slash that depends on the
-            // escape character (and could break the size of the message)
-                random_string[i] == 0x22 || random_string[i] == 0x5C || random_string[i] == 0x2F);
-    }
-    random_string[string_size] = '\0'; // Null terminator
-    return random_string;
-}
 
 // Function for sending payloads to the server
 void send_payload(void *socket, int thread_num, int messages_sent) {
@@ -171,7 +158,7 @@ void *client_thread(void *thread_id) {
     while (messages_sent < config.num_messages && !interrupted) {
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
-        send_heartbeat(socket, get_group(MAIN_GROUP), false);  // Refer to common/qos.c
+        send_heartbeat(socket, get_group(MAIN_GROUP), false);  // Refer to common/accrual_detector.c
 #endif
 
         if (config.use_msg_per_minute) {
@@ -216,7 +203,7 @@ void *client_thread(void *thread_id) {
 
 #ifdef REALMQ_VERSION
     // Send last heartbeat for synchronization before exiting
-    send_heartbeat(socket, get_group(MAIN_GROUP), true);  // Refer to common/qos.c
+    send_heartbeat(socket, get_group(MAIN_GROUP), true);  // Refer to common/accrual_detector.c
 #endif
 
     zmq_close(socket);

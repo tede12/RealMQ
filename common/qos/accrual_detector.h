@@ -1,11 +1,11 @@
 //  =====================================================================
-//  qos.h
+//  accrual_detector.h
 //
 //  Quality of Service functions
 //  =====================================================================
 
-#ifndef QOS_H
-#define QOS_H
+#ifndef ACCRUAL_DETECTOR
+#define ACCRUAL_DETECTOR
 
 #include <zmq.h>
 #include <stdbool.h>
@@ -16,4 +16,4 @@ void send_heartbeat(void *socket, const char *group, bool force_send);
 void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type);
 
 
-#endif // QOS_H
+#endif // ACCRUAL_DETECTOR

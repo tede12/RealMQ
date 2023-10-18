@@ -4,11 +4,12 @@
 #include <stdio.h>
 #include <unistd.h> // for sleep()
 #include <pthread.h>
-#include "../common/zhelpers.h"
-#include "../common/utils.h"
-#include "../common/qos.h"
-#include "../common/logger.h"
-#include "../common/config.h"
+#include "core/zhelpers.h"
+#include "utils/utils.h"
+#include "qos/accrual_detector.h"
+#include "core/logger.h"
+#include "core/config.h"
+#include "utils/time_utils.h"
 
 
 Logger client_logger;
@@ -79,11 +80,13 @@ void *client_thread(void *thread_id) {
         send_time = getCurrentTime();
 
 
-        sleep(0.2); // Send a message every second
+        sleep(1); // Send a message every second
     }
 
     zmq_close(radio);
     zmq_ctx_destroy(context);
+
+    return NULL;
 }
 
 int main(void) {

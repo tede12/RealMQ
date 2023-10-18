@@ -3,11 +3,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h> // for sleep()
-#include "../common/zhelpers.h"
-#include "../common/utils.h"
-#include "../common/config.h"
-#include "../common/qos.h"
-#include "../common/logger.h"
+#include "core/zhelpers.h"
+#include "utils/utils.h"
+#include "core/config.h"
+#include "qos/accrual_detector.h"
+#include "core/logger.h"
 
 Logger server_logger;
 
@@ -65,7 +65,7 @@ int main(void) {
 
     int count_msg = 0;
 
-    while (1) {
+    while (!interrupted) {
         char buffer[1024];
         rc = zmq_recv(dish, buffer, 1023, 0);
         if (rc == -1 && errno == EAGAIN) {
@@ -74,7 +74,7 @@ int main(void) {
         }
 
         // Check if prefix of the message is "HB" (heartbeat)
-        if (strncmp(buffer, "HB", 2) == 0) {
+        if (strncmp(buffer, "HB", 2) == 0 || count_msg == 4) {
             // Heartbeat received
             printf("Heartbeat received\n");
             // last id received
