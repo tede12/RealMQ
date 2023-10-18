@@ -66,7 +66,7 @@ int get_zmq_type(RoleType roleType);
 
 char *next_value(yaml_parser_t *parser);
 
-int convert_to_int(const char *value);
+int convert_string_to_int(const char *value);
 
 int read_config(const char *filename);
 

@@ -118,7 +118,7 @@ char *next_value(yaml_parser_t *parser) {
  * @param value The string to convert.
  * @return The integer value of the string, or -1 if the string is not a valid integer.
  */
-int convert_to_int(const char *value) {
+int convert_string_to_int(const char *value) {
     char *endptr;
     errno = 0;
     long num = strtol(value, &endptr, 10);
@@ -178,42 +178,42 @@ int read_config(const char *filename) {
             } else if (strcmp(key, "responder_address") == 0) {
                 config.responder_address = value;
             } else if (strcmp(key, "num_threads") == 0) {
-                config.num_threads = convert_to_int(value);
+                config.num_threads = convert_string_to_int(value);
                 free(value);
             } else if (strcmp(key, "num_messages") == 0) {
-                config.num_messages = convert_to_int(value);
+                config.num_messages = convert_string_to_int(value);
                 free(value);
             } else if (strcmp(key, "use_json") == 0) {
                 config.use_json = strcmp(value, "true") == 0;
                 free(value);
             } else if (strcmp(key, "save_interval_seconds") == 0) {
-                config.save_interval_seconds = convert_to_int(value);
+                config.save_interval_seconds = convert_string_to_int(value);
                 free(value);
             } else if (strcmp(key, "stats_folder_path") == 0) {
                 config.stats_folder_path = value;
             } else if (strcmp(key, "use_msg_per_minute") == 0) {
                 config.use_msg_per_minute = strcmp(value, "true") == 0;
             } else if (strcmp(key, "msg_per_minute") == 0) {
-                config.msg_per_minute = convert_to_int(value);
+                config.msg_per_minute = convert_string_to_int(value);
                 free(value);
             } else if (strcmp(key, "message_size") == 0) {
-                config.message_size = convert_to_int(value);
+                config.message_size = convert_string_to_int(value);
                 free(value);
             } else if (strcmp(key, "protocol") == 0) {
                 config.protocol = value;
             } else if (strcmp(key, "signal_msg_timeout") == 0) {
-                config.signal_msg_timeout = convert_to_int(value);
+                config.signal_msg_timeout = convert_string_to_int(value);
                 free(value);
             }
                 // CLIENT
             else if (strcmp(key, "sleep_starting_time") == 0) {
-                config.client_action->sleep_starting_time = convert_to_int(value);
+                config.client_action->sleep_starting_time = convert_string_to_int(value);
                 free(value);
             }
 
                 // SERVER
             else if (strcmp(key, "sleep_starting_time") == 0) {
-                config.server_action->sleep_starting_time = convert_to_int(value);
+                config.server_action->sleep_starting_time = convert_string_to_int(value);
                 free(value);
 
                 // -----------------------------------------------------------------------------------------------------
