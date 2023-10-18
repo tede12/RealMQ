@@ -9,8 +9,8 @@
 #include "core/config.h"
 #include "core/zhelpers.h"
 #include "core/logger.h"
-#include "common/utils/time_utils.h"
-#include "common/utils/fs_utils.h"
+#include "utils/time_utils.h"
+#include "utils/fs_utils.h"
 
 
 // ---------------------------------------- Global configuration -------------------------------------------------------
@@ -81,7 +81,7 @@ void *server_thread(void *args) {
         }
         double recv_time = getCurrentTimeValue(NULL);
 
-#ifdef REALMQ_VERSION
+#ifdef QOS_RETRANSMISSION
         // Check if prefix of the message is "HB" (heartbeat)
         if (strncmp(message, "HB", 2) == 0) {
             // Heartbeat received
@@ -111,16 +111,17 @@ void *server_thread(void *args) {
             if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
                 const char *id_str = json_object_get_string(id_obj);
 
-#ifdef REALMQ_VERSION
+#ifdef QOS_RETRANSMISSION
                 // Store the ID
                 add_message_id(id_str);
-#else
+#endif
+
+#ifndef REALMQ_VERSION
                 // Send the ID back to the client
                 int rc = zmq_send(receiver, id_str, strlen(id_str), 0);
                 if (rc == -1) {
                     logger(LOG_LEVEL_ERROR, "Error in sending message");
                 }
-
 #endif
             }
 

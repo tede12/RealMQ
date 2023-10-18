@@ -9,8 +9,8 @@
 #include "core/zhelpers.h"
 #include "core/logger.h"
 #include "qos/accrual_detector.h"
-#include "common/utils/time_utils.h"
-#include "common/string_manip.h"
+#include "utils/time_utils.h"
+#include "string_manip.h"
 
 #ifdef REALMQ_VERSION
 
@@ -104,9 +104,9 @@ void *response_handler(void *arg) {
         return NULL;
     }
 
-
     while (!interrupted) {
         char buffer[MAX_RESPONSE_LENGTH];
+
 
         // Receive response from server
         int recv_len = zmq_recv(socket, buffer, MAX_RESPONSE_LENGTH - 1, 0); // -1 to allow space for null-terminator
@@ -116,6 +116,7 @@ void *response_handler(void *arg) {
 
             // Process the response and delete the message IDs from the global list
             size_t missed_count = 0;
+
             char **missed_ids = process_missed_message_ids(buffer, &missed_count);
             logger(LOG_LEVEL_WARN, "Missed messages: %zu", missed_count);
             // todo resend messages missed
@@ -129,6 +130,7 @@ void *response_handler(void *arg) {
             continue;
         }
     }
+
 
     return NULL;
 }
@@ -253,7 +255,8 @@ int main() {
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );
-
+#endif
+#ifdef QOS_RETRANSMISSION
     // Subscribe to all messages
     pthread_t response_thread;
     if (pthread_create(&response_thread, NULL, response_handler, response_socket)) {
@@ -290,6 +293,9 @@ int main() {
     zmq_close(response_socket);
     zmq_ctx_destroy(response_context);
 
+#endif
+
+#ifdef QOS_RETRANSMISSION
     pthread_join(response_thread, NULL);
 #endif
 

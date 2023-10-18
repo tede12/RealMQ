@@ -67,7 +67,7 @@ void process_message_ids(void *responder, char *last_id) {
                     }
                 }
 
-                logger(LOG_LEVEL_INFO, "Sent IDs.");
+//                logger(LOG_LEVEL_INFO, "Sent IDs.");
 
                 ids_string[0] = '\0'; // Reset the string to empty
                 current_id_count = 0; // Reset the ID counter

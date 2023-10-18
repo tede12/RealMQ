@@ -15,7 +15,7 @@ def plot_data(file):
     print(df.head())
 
     # Sort data by 'id'
-    df.sort_values('id', inplace=True)
+    # df.sort_values('id', inplace=True)    # no more with UUIDs
 
     # Reset the index to have a range from 1 to N
     df.reset_index(drop=True, inplace=True)
