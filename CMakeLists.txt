@@ -90,8 +90,8 @@ target_link_libraries_realmq(realmq_client)
 target_link_libraries_realmq(realmq_server)
 
 # ------------------------------- Test executables ---------------------------------------
-add_executable(client draft_test/client.c ${SOURCE_FILES})
-add_executable(server draft_test/server.c ${SOURCE_FILES})
+add_executable(client test/draft_test/client.c ${SOURCE_FILES})
+add_executable(server test/draft_test/server.c ${SOURCE_FILES})
 
 target_link_libraries_realmq(client)
 target_link_libraries_realmq(server)
