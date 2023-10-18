@@ -13,7 +13,7 @@ void setUp(void) {
 
 void tearDown(void) {
     // clean stuff up here
-    release_config();
+//    release_config();
 }
 
 void test_function_get_valid_address(void) {

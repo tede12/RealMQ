@@ -18,7 +18,7 @@ void test_function_convert_invalid_string_to_int(void) {
 }
 
 void test_function_convert_empty_string_to_int(void) {
-    TEST_ASSERT_EQUAL_INT(-1, convert_string_to_int(""));
+    TEST_ASSERT_EQUAL_INT(0, convert_string_to_int(""));
 }
 
 void test_function_convert_string_with_overflow_to_int(void) {

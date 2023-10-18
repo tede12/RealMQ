@@ -179,41 +179,78 @@ char **process_missed_message_ids(const char *buffer, size_t *missed_count) {
     char **ids_in_buffer = split_string(buffer, IDS_SEPARATOR[0], &num_ids_in_buffer);
 
     if (!ids_in_buffer || num_ids_in_buffer == 0) {
-        fprintf(stderr, "Error: No IDs found in the buffer.\n");
-    } else {
-        // The last ID in the buffer is the last_id.
-        char *last_id = ids_in_buffer[num_ids_in_buffer - 1];
+        logger(LOG_LEVEL_ERROR, "Error: No IDs found in the buffer.");
+        pthread_mutex_unlock(&message_ids_mutex);
+        return NULL; // No IDs found in the buffer, return NULL.
+    }
 
-        for (size_t i = 0; i < num_message_ids; ++i) {
-            if (strcmp(message_ids[i], last_id) >
-                0) { // If the current ID is "greater" than the last_id, it's considered "missed".
-                ++(*missed_count);
-                missed_ids = (char **) realloc(missed_ids, (*missed_count) * sizeof(char *));
-                if (!missed_ids) {
-                    perror("Memory allocation error");
-                    *missed_count = 0;
-                    break; // Break out of the loop in case of memory allocation failure.
-                } else {
-                    missed_ids[(*missed_count) - 1] = strdup(message_ids[i]);
-                }
+    // The last ID in the buffer is the last_id.
+    char *last_id = ids_in_buffer[num_ids_in_buffer - 1];
+
+    size_t last_id_index_in_message_ids = -1;
+    // Find the index of the last_id in the message_ids array.
+    for (size_t i = 0; i < num_message_ids; ++i) {
+        if (strcmp(message_ids[i], last_id) == 0) {
+            last_id_index_in_message_ids = i;
+            break;
+        }
+    }
+
+    if (last_id_index_in_message_ids == -1) {
+        logger(LOG_LEVEL_ERROR, "Last ID not found in message IDs; all IDs missed.");
+        *missed_count = num_message_ids;
+        pthread_mutex_unlock(&message_ids_mutex);
+        return message_ids; // All IDs missed, return all message_ids.
+    }
+
+    // Identify missed IDs and reallocate missed_ids array accordingly.
+    for (size_t i = 0; i <= last_id_index_in_message_ids; ++i) {
+        bool found = false;
+        for (size_t j = 0; j < num_ids_in_buffer; ++j) {
+            if (strcmp(message_ids[i], ids_in_buffer[j]) == 0) {
+                found = true;
+                break;
             }
         }
-
-        // Free the original message_ids after processing.
-        for (size_t i = 0; i < num_message_ids; ++i) {
-            free(message_ids[i]);
+        if (!found) {
+            ++(*missed_count);
+            missed_ids = (char **) realloc(missed_ids, (*missed_count) * sizeof(char *));
+            if (!missed_ids) {
+                logger(LOG_LEVEL_ERROR, "Memory allocation failure for missed_ids.");
+                *missed_count = 0;
+                break; // In case of memory allocation failure, break the loop.
+            } else {
+                missed_ids[(*missed_count) - 1] = strdup(message_ids[i]);
+            }
         }
-        free(message_ids);
-        message_ids = NULL;
-        num_message_ids = 0;
-
-        // Free the split IDs from the buffer.
-        for (size_t i = 0; i < num_ids_in_buffer; ++i) {
-            free(ids_in_buffer[i]);
-        }
-        free(ids_in_buffer);
     }
-//    missed_count--;
+
+    // Free the memory of message IDs that are up to the last acknowledged ID.
+    for (size_t i = 0; i <= last_id_index_in_message_ids; ++i) {
+        free(message_ids[i]);
+        message_ids[i] = NULL;
+    }
+
+    // Shift the remaining IDs down in the array.
+    size_t new_num_message_ids = num_message_ids - (last_id_index_in_message_ids + 1);
+    for (size_t i = 0; i < new_num_message_ids; ++i) {
+        message_ids[i] = message_ids[i + last_id_index_in_message_ids + 1];
+    }
+
+    // Attempt to shrink the memory used by the message_ids array.
+    char **new_message_ids = realloc(message_ids, new_num_message_ids * sizeof(char *));
+    if (!new_message_ids) {
+        logger(LOG_LEVEL_ERROR, "Memory reallocation failure for message_ids.");
+    } else {
+        message_ids = new_message_ids;
+    }
+    num_message_ids = new_num_message_ids;
+
+    // Free the split IDs from the buffer.
+    for (size_t i = 0; i < num_ids_in_buffer; ++i) {
+        free(ids_in_buffer[i]);
+    }
+    free(ids_in_buffer);
 
     pthread_mutex_unlock(&message_ids_mutex); // Unlock the mutex after processing.
 

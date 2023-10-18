@@ -79,6 +79,7 @@ function(target_link_libraries_realmq target)
             ${YAML_LIBRARIES}
             ${UUID_LIBRARIES}
             Threads::Threads
+            m # libm
             )
 endfunction()
 
@@ -125,11 +126,31 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src
         EXCLUDE_FROM_ALL)
 
 # Add the path to the Unity library to the link directories
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-build) # Ensure this is the directory where Unity library is built
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-build)              #  fixme: probably not needed
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-install/lib)
+
+
+# Function to add Unity-based tests with less repetition
+function(add_unity_test test_name test_source)
+    add_executable(${test_name} ${test_source} ${SOURCE_FILES})
+    target_link_libraries(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/unity-install/lib/libunity.a)
+    target_link_libraries_realmq(${test_name})
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endfunction()
 
 # Test cases
-add_executable(test_split_string tests/test_split_string.c ${SOURCE_FILES})
-target_link_libraries(test_split_string Unity) # Linking against Unity library
-target_link_libraries_realmq(test_split_string) # Linking against project-specific dependencies
-add_test(NAME test_split_string COMMAND test_split_string)
+
+add_unity_test(test_split_string tests/test_split_string.c)
+add_unity_test(test_get_address tests/test_get_address.c)
+add_unity_test(test_convert_string_to_int tests/test_convert_string_to_int.c)
+add_unity_test(test_process_missed_message_ids tests/test_process_missed_message_ids.c)
+
 # ----------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
