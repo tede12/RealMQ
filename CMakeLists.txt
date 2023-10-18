@@ -90,12 +90,46 @@ target_link_libraries_realmq(realmq_client)
 target_link_libraries_realmq(realmq_server)
 
 # ------------------------------- Test executables ---------------------------------------
-add_executable(client test/draft_test/client.c ${SOURCE_FILES})
-add_executable(server test/draft_test/server.c ${SOURCE_FILES})
+add_executable(client tests/draft_test/client.c ${SOURCE_FILES})
+add_executable(server tests/draft_test/server.c ${SOURCE_FILES})
 
 target_link_libraries_realmq(client)
 target_link_libraries_realmq(server)
 # ----------------------------------------------------------------------------------------
 
+# ------------------------------- Unit Testing ---------------------------------------
+# Include Unity source directory
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-src/src)
 
+# Enable testing for the project
+enable_testing()
 
+# Download and unpack Unity at configure time
+configure_file(tests/unity/CMakeLists.txt unity-download/CMakeLists.txt)
+execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+        RESULT_VARIABLE result
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-download)
+if (result)
+    message(FATAL_ERROR "CMake step for unity failed: ${result}")
+endif ()
+execute_process(COMMAND ${CMAKE_COMMAND} --build .
+        RESULT_VARIABLE result
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-download)
+if (result)
+    message(FATAL_ERROR "Build step for unity failed: ${result}")
+endif ()
+
+# Add Unity source to our build
+add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src
+        ${CMAKE_CURRENT_BINARY_DIR}/unity-build
+        EXCLUDE_FROM_ALL)
+
+# Add the path to the Unity library to the link directories
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-build) # Ensure this is the directory where Unity library is built
+
+# Test cases
+add_executable(test_split_string tests/test_split_string.c ${SOURCE_FILES})
+target_link_libraries(test_split_string Unity) # Linking against Unity library
+target_link_libraries_realmq(test_split_string) # Linking against project-specific dependencies
+add_test(NAME test_split_string COMMAND test_split_string)
+# ----------------------------------------------------------------------------------------

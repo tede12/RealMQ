@@ -74,8 +74,7 @@ int get_zmq_type(RoleType roleType) {
 
     }
 
-#define DZMQ_BUILD_DRAFT_API    // todo need to be fixed
-#ifdef DZMQ_BUILD_DRAFT_API
+#ifdef ZMQ_BUILD_DRAFT_API
         // This code is only compiled if the ZMQ BUILD DRAFT is enabled otherwise it will raise an error
     else if (strcmp(config.protocol, "udp") == 0) {
         if (roleType == SERVER) {

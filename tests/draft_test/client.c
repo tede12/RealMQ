@@ -10,6 +10,7 @@
 #include "core/logger.h"
 #include "core/config.h"
 #include "utils/time_utils.h"
+#include "string_manip.h"
 
 
 Logger client_logger;
@@ -26,12 +27,10 @@ void *responder_thread(void *arg) {
         }
 
         buffer[rc] = '\0'; // Null-terminate the string
-//        logger(LOG_LEVEL_WARN, "Message received from server [RESPONDER]: %s", buffer);
+
         size_t missed_count = 0;
         char **missed_ids = process_missed_message_ids(buffer, &missed_count);
         logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
-//        printf("Message received from server [RESPONDER]: %s\n", buffer);
-//        printf("Message received from server [RESPONDER] with ids\n");
 
     }
     return NULL;
@@ -53,14 +52,9 @@ void *client_thread(void *thread_id) {
             NULL
     );
 
-    timespec send_time = getCurrentTime();
-
-
     while (!interrupted) {
         // Create a message ID
-        double recv_time = getCurrentTimeValue(NULL);
-        char *msg_id = (char *) malloc(20 * sizeof(char));
-        sprintf(msg_id, "%f", recv_time);
+        char *msg_id = generate_uuid();
 
         // QoS - Send a heartbeat
         send_heartbeat(radio, "GRP", false);
@@ -74,13 +68,7 @@ void *client_thread(void *thread_id) {
         // Save the message ID
         add_message_id(msg_id);
 
-//        printf("Sent from client [MAIN]: %s (time spent since last message: %f)\n", msg_id,
-//               getElapsedTime(send_time, NULL));
-
-        send_time = getCurrentTime();
-
-
-        sleep(1); // Send a message every second
+        sleep(3); // Send a message every second
     }
 
     zmq_close(radio);
@@ -95,7 +83,6 @@ int main(void) {
     printf("Client started\n");
 
     void *context_2 = create_context();
-    int rc;
 
 //    // RADIO for CLIENT
 //    void *radio = create_socket(context, ZMQ_RADIO, "udp://127.0.0.1:5555", 1000, NULL);

@@ -10,7 +10,7 @@
 char **split_string(const char *str, const char delim, size_t *num_tokens) {
     *num_tokens = 0;
 
-    // First, count the number of tokens.
+    // First, count the number of tokens in the string.
     const char *ptr = str;
     while (*ptr) {
         if (*ptr == delim) {
@@ -18,7 +18,8 @@ char **split_string(const char *str, const char delim, size_t *num_tokens) {
         }
         ptr++;
     }
-    (*num_tokens)++; // One more for the last token.
+    // One more for the last token.
+    (*num_tokens)++;
 
     // Allocate memory for tokens.
     char **tokens = malloc(*num_tokens * sizeof(char *));
@@ -28,15 +29,18 @@ char **split_string(const char *str, const char delim, size_t *num_tokens) {
         return NULL;
     }
 
-    size_t token_len = 0;
     ptr = str; // Reset pointer to the start of the string.
     for (size_t i = 0; i < *num_tokens; i++) {
         const char *start = ptr; // Start of the token.
+        size_t token_len = 0; // Reset for the next token.
+
+        // Find the end of the token.
         while (*ptr && *ptr != delim) {
             token_len++;
             ptr++;
         }
 
+        // Copy the token into the tokens array.
         tokens[i] = strndup(start, token_len);
         if (!tokens[i]) {
             perror("Memory allocation error");
@@ -49,7 +53,6 @@ char **split_string(const char *str, const char delim, size_t *num_tokens) {
             return NULL;
         }
 
-        token_len = 0; // Reset for the next token.
         if (*ptr) {
             ptr++; // Skip the delimiter.
         }
@@ -79,3 +82,21 @@ char *random_string(unsigned int string_size) {
     random_string[string_size] = '\0'; // Null terminator
     return random_string;
 }
+
+/**
+ * @brief Generate a UUID (length: 36 characters + null terminator = 37)
+ * @details Every UUID consists of 32 hexadecimal characters, displayed in 5 groups separated by hyphens. (8-4-4-4-12)
+ * @return char* A dynamically-allocated string. Free after use.
+ */
+char *generate_uuid() {
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+
+    char *uuid_str = malloc(37 * sizeof(char));  // 36 characters + null terminator
+    uuid_unparse(uuid, uuid_str);
+
+    return uuid_str;
+}
+
+
+

@@ -74,7 +74,7 @@ int main(void) {
         }
 
         // Check if prefix of the message is "HB" (heartbeat)
-        if (strncmp(buffer, "HB", 2) == 0 || count_msg == 4) {
+        if (strncmp(buffer, "HB", 2) == 0 || count_msg == 3) {
             // Heartbeat received
             printf("Heartbeat received\n");
             // last id received

@@ -15,7 +15,7 @@ const int MAX_RESPONSE_LENGTH = 1024;
 char *IDS_SEPARATOR = ",";
 
 // sizeof(double) could be 8, but It's string representation could be 20 characters
-#define ID_MAX_LENGTH 21 // Maximum length of an ID (20 characters for double and 1 for '\0')
+#define ID_MAX_LENGTH 37 // Maximum length of an ID (36 characters for double and 1 for '\0')
 
 // ====================================== Message Manipulation =========================================================
 
@@ -160,7 +160,6 @@ void add_message_id(const char *id_str) {
     num_message_ids++;
     pthread_mutex_unlock(&message_ids_mutex);
 }
-
 
 
 /**
