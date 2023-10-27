@@ -27,7 +27,6 @@ size_t message_sent_correctly = 0;
 sem_t mutex;  // semaphore to protect the counter
 
 
-
 // Function for sending payloads to the server
 void send_payload(void *socket, int thread_num, int messages_sent) {
     // Create the message (payload)
@@ -40,16 +39,13 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // Create a JSON object for the message
     json_object *json_msg = json_object_new_object();
 
-    double message_id = getCurrentTimeValue(NULL);
+    char *message_id = generate_uuid();
 
-    // Convert double to string
-    char *message_id_str = malloc(20 * sizeof(char));
-    sprintf(message_id_str, "%f", message_id);
     // Store the ID
-    add_message_id(message_id_str);
+    add_message_id(message_id);
 
     // use unique id for each message based time_millis
-    json_object_object_add(json_msg, "id", json_object_new_double(message_id));
+    json_object_object_add(json_msg, "id", json_object_new_string(message_id));
     json_object_object_add(json_msg, "message", json_object_new_string(message));
     json_object_object_add(json_msg, "send_time", json_object_new_double(getCurrentTimeValue(&send_time)));
 
@@ -89,7 +85,7 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     zmq_recv(socket, message, sizeof(message), 0);
 
 #endif
-//    logger(LOG_LEVEL_INFO, "Sent message with ID: %f", message_id);
+    logger(LOG_LEVEL_INFO, "Sent message with ID: %s", message_id);
 
 }
 
@@ -158,10 +154,23 @@ void *client_thread(void *thread_id) {
 
     int messages_sent = 0;
     while (messages_sent < config.num_messages && !interrupted) {
+
+
+        // add nano sleep to avoid sending messages too fast
+        struct timespec ts;
+        ts.tv_sec = 0;
+
+        // random number between 0 and 100000
+        // 100000; // 0.01 ms
+        ts.tv_nsec = rand() % 10000000; // 0.01 ms
+        nanosleep(&ts, NULL);
+        // --------------------------------------------------
+
 #ifdef REALMQ_VERSION
         // Send a heartbeat before starting to send messages
         send_heartbeat(socket, get_group(MAIN_GROUP), false);  // Refer to common/accrual_detector.c
 #endif
+
 
         if (config.use_msg_per_minute) {
             // Keep track of current time (for taking diff of a minute)

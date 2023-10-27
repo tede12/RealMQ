@@ -5,14 +5,31 @@
 
 
 char *date_time = NULL;
+static int file_counter = 0; // Counter for the file names
+#define MAX_MESSAGES 100000 // Max messages per file
+pthread_mutex_t json_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex for json_messages
+
 
 /**
  * @brief Save statistics to a file
  */
-void save_stats_to_file(json_object *json_messages) {
-    if (json_messages == NULL || json_object_array_length(json_messages) == 0) {
+void save_stats_to_file(json_object **json_messages_ptr) {
+
+    if (json_messages_ptr == NULL || *json_messages_ptr == NULL || json_object_array_length(*json_messages_ptr) == 0) {
         return;
     }
+
+    pthread_mutex_lock(&json_mutex); // Lock the mutex
+
+    json_object *json_messages = *json_messages_ptr; // Dereference the pointer for easier usage
+
+    bool free_space = false;
+    if (json_object_array_length(json_messages) >= MAX_MESSAGES) {
+        // Get new file name
+        file_counter++;
+        free_space = true;
+    }
+
 
     char *fullPath = create_stats_path();
 
@@ -28,6 +45,7 @@ void save_stats_to_file(json_object *json_messages) {
 
     if (file == NULL) {
         logger(LOG_LEVEL_ERROR, "Impossibile aprire il file per la scrittura.");
+        pthread_mutex_unlock(&json_mutex); // Unlock the mutex
         return;
     }
 
@@ -60,6 +78,15 @@ void save_stats_to_file(json_object *json_messages) {
         }
     }
     fclose(file);
+
+    if (free_space) {
+        // Clean the json_messages array
+        json_object_put(json_messages); // This will free the memory associated with json_messages
+        *json_messages_ptr = json_object_new_array(); // Create a new array and update the original pointer
+    }
+
+    pthread_mutex_unlock(&json_mutex); // Unlock the mutex
+
 }
 
 
@@ -103,7 +130,8 @@ char *create_stats_path() {
             + strlen(date_time)
             + strlen(config.protocol)
             + strlen("_result")
-            + strlen(file_extension) + 3;  // +3 for the '/' and the null terminator
+            // +3 for the '/' and the null terminator + 2 for the '_' and the 'file_counter'
+            + strlen(file_extension) + 3 + 2;
 
     // Allocate memory for the full file path
     char *fullPath = (char *) malloc(totalLength * sizeof(char));
@@ -115,8 +143,8 @@ char *create_stats_path() {
 
     // Construct the full file path
     snprintf(
-            fullPath, totalLength, "%s/%s_%s_result%s",
-            config.stats_folder_path, date_time, config.protocol, file_extension);
+            fullPath, totalLength, "%s/%s_%s_%d_result%s",
+            config.stats_folder_path, date_time, config.protocol, file_counter, file_extension);
     return fullPath;
 }
 

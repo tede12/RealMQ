@@ -24,8 +24,10 @@
 // Get the date + time for the filename
 extern char *date_time;
 
+extern pthread_mutex_t json_mutex; // Mutex for json_messages
+
 // Function to save the statistics to a file
-void save_stats_to_file(json_object *json_messages);
+void save_stats_to_file(json_object **json_messages_ptr);
 
 // Function to create folder if it doesn't exist
 char *create_if_not_exist_folder(char *folder_path);

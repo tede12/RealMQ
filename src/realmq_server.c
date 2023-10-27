@@ -40,7 +40,10 @@ void process_json_message(const char *json_str, double recv_time) {
 //        json_object_object_add(jobj, "message", json_object_object_get(json_msg, "message"));
         json_object_object_add(jobj, "send_time", json_object_object_get(json_msg, "send_time"));
         json_object_object_add(jobj, "recv_time", json_object_new_double(recv_time));
+
+        pthread_mutex_lock(&json_mutex);    // Import for not corrupting the json_messages array during the saving
         json_object_array_add(json_messages, jobj);
+        pthread_mutex_unlock(&json_mutex);
     }
 }
 
@@ -103,6 +106,11 @@ void *server_thread(void *args) {
         // Increment the received messages counter
         messages_received++;
 
+        // log every 100000 messages
+        if (messages_received % 100000 == 0) {
+            logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
+        }
+
         // Extract the ID from the message
         json_object *json_msg = json_tokener_parse(message);
         if (json_msg) {
@@ -117,11 +125,11 @@ void *server_thread(void *args) {
 #endif
 
 #ifndef REALMQ_VERSION
-                // Send the ID back to the client
-                int rc = zmq_send(receiver, id_str, strlen(id_str), 0);
-                if (rc == -1) {
-                    logger(LOG_LEVEL_ERROR, "Error in sending message");
-                }
+//                // Send the ID back to the client
+//                int rc = zmq_send(receiver, id_str, strlen(id_str), 0);
+//                if (rc == -1) {
+//                    logger(LOG_LEVEL_ERROR, "Error in sending message");
+//                }
 #endif
             }
 
@@ -151,7 +159,7 @@ void *stats_saver_thread(void *args) {
         sleep(config.save_interval_seconds);
 
         // Save statistics to a file
-        save_stats_to_file(json_messages);
+        save_stats_to_file(&json_messages);
     }
     if (interrupted)
         logger(LOG_LEVEL_DEBUG, "***Exiting stats saver thread.");
@@ -198,7 +206,7 @@ int main() {
     pthread_join(stats_saver, NULL);
 
     // Save final statistics to a file
-    save_stats_to_file(json_messages);
+    save_stats_to_file(&json_messages);
 
     // Deallocate json_messages before exiting
     json_object_put(json_messages);

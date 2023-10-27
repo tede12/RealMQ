@@ -11,7 +11,7 @@ find_package(Threads REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 # Required for testing DGRAM sockets (UDP) that are not yet supported in stable releases only in draft releases
 add_definitions(-DZMQ_BUILD_DRAFT_API)
-add_definitions(-DREALMQ_VERSION)       # This is the version of RealMQ with QoS support
+#add_definitions(-DREALMQ_VERSION)       # This is the version of RealMQ with QoS support
 #add_definitions(-DQOS_RETRANSMISSION)    # This is the version of RealMQ with QoS Retransmission support
 
 pkg_check_modules(CZMQ REQUIRED libczmq)
@@ -145,7 +145,7 @@ add_unity_test(test_split_string tests/test_split_string.c)
 add_unity_test(test_get_address tests/test_get_address.c)
 add_unity_test(test_convert_string_to_int tests/test_convert_string_to_int.c)
 add_unity_test(test_process_missed_message_ids tests/test_process_missed_message_ids.c)
-
+add_unity_test(test_fs_utils tests/test_fs_utils.c)
 # ----------------------------------------------------------------------------------------
 
 
