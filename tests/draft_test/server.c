@@ -42,7 +42,7 @@ int main(void) {
     }
 
     // Print configuration
-    get_configuration();
+    print_configuration();
 
 
     // Dish socket

@@ -74,7 +74,7 @@ int read_config(const char *filename);
 
 void release_config();
 
-void get_configuration();
+void print_configuration();
 
 #endif //CONFIG_H
 

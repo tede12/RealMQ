@@ -301,7 +301,7 @@ void release_config() {
 }
 
 // Return a string representation of the configuration.
-void get_configuration() {
+void print_configuration() {
     char *configuration = malloc(1024);
 
     if (!configuration) {

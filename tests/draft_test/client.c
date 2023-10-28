@@ -110,7 +110,7 @@ int main(void) {
     }
 
     // Print configuration
-    get_configuration();
+    print_configuration();
 
 
     void *dish = create_socket(

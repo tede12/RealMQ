@@ -185,7 +185,7 @@ int main() {
     }
 
     // Print configuration
-    logger(LOG_LEVEL_DEBUG, get_configuration());
+    print_configuration();
 
     // Initialize JSON statistics
     json_messages = json_object_new_array();
