@@ -9,7 +9,6 @@
 #include "core/config.h"
 
 
-
 void setUp(void) {
     // set stuff up here
     if (read_config("../config.yaml") != 0) {
@@ -37,6 +36,17 @@ void tearDown(void) {
 }
 
 
+void test_file_exists(void) {
+    // Create a temporary file for testing
+    FILE *fp = fopen("/tmp/test_file", "w");
+    fclose(fp);
+
+    check_file_exists("/tmp/test_file");
+    TEST_ASSERT_EQUAL_INT(1, check_file_exists("/tmp/test_file"));
+
+    // Cleanup
+    remove("/tmp/test_file");
+}
 
 void test_create_stats_path_valid(void) {
     char *path = create_stats_path();
@@ -85,6 +95,7 @@ int main(void) {
     RUN_TEST(test_create_stats_path_valid);
     RUN_TEST(test_save_stats_to_file_null_json);
     RUN_TEST(test_save_stats_to_file_creates_file);
+    RUN_TEST(test_file_exists);
     // More RUN_TEST() calls...
     return UNITY_END();
 }

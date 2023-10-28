@@ -68,11 +68,13 @@ char *next_value(yaml_parser_t *parser);
 
 int convert_string_to_int(const char *value);
 
+void assign_key_value(char *latest_section, char *key, char *value);
+
 int read_config(const char *filename);
 
 void release_config();
 
-char *get_configuration();
+void get_configuration();
 
 #endif //CONFIG_H
 

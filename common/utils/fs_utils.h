@@ -18,6 +18,7 @@
 #include <libgen.h>
 #include <pthread.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <json-c/json.h>
 
 
@@ -28,6 +29,9 @@ extern pthread_mutex_t json_mutex; // Mutex for json_messages
 
 // Function to save the statistics to a file
 void save_stats_to_file(json_object **json_messages_ptr);
+
+// Function to check if a file exists
+bool check_file_exists(char *file_path);
 
 // Function to create folder if it doesn't exist
 char *create_if_not_exist_folder(char *folder_path);

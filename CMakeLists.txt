@@ -146,6 +146,7 @@ add_unity_test(test_get_address tests/test_get_address.c)
 add_unity_test(test_convert_string_to_int tests/test_convert_string_to_int.c)
 add_unity_test(test_process_missed_message_ids tests/test_process_missed_message_ids.c)
 add_unity_test(test_fs_utils tests/test_fs_utils.c)
+add_unity_test(test_config tests/test_config.c)
 # ----------------------------------------------------------------------------------------
 
 

@@ -249,7 +249,7 @@ int main() {
     }
 
     // Print configuration
-    logger(LOG_LEVEL_INFO, get_configuration());
+    get_configuration();
 
 #ifdef REALMQ_VERSION
     //    // Initialize message queue

@@ -3,6 +3,9 @@
 // Global logger
 Logger global_logger;
 
+const size_t FINAL_MSG_SIZE = 1088;
+
+
 /**
  * Log a message with the given level and format
  * @param level
@@ -32,37 +35,37 @@ void log_internal(int level, const char *format, va_list args) {
 
     vsnprintf(buffer, sizeof(buffer), format, args);
 
-    char final_msg[1280];
+    char *final_msg = malloc(FINAL_MSG_SIZE);
     char *string_level;
     char *color;
     switch (level) {
 
         case LOG_LEVEL_INFO:
-            string_level = strdup("INFO");
+            string_level = "INFO";
             color = NULL;
             break;
         case LOG_LEVEL_INFO2:
-            string_level = strdup("INFO");
+            string_level = "INFO";
             color = ANSI_COLOR_BLUE;
             break;
         case LOG_LEVEL_ERROR:
-            string_level = strdup("ERROR");
+            string_level = "ERROR";
             color = ANSI_COLOR_RED;
             break;
         case LOG_LEVEL_DEBUG:
-            string_level = strdup("DEBUG");
+            string_level = "DEBUG";
             color = ANSI_COLOR_GREEN;
             break;
         case LOG_LEVEL_WARN:
-            string_level = strdup("WARN");
+            string_level = "WARN";
             color = ANSI_COLOR_YELLOW;
             break;
         case LOG_LEVEL_FATAL:
-            string_level = strdup("FATAL");
+            string_level = "FATAL";
             color = ANSI_COLOR_MAGENTA;
             break;
         default:
-            string_level = strdup("UNKNOWN");
+            string_level = "UNKNOWN";
             color = NULL;
             break;
     }
@@ -73,7 +76,22 @@ void log_internal(int level, const char *format, va_list args) {
     }
 
     // Create the final message
-    snprintf(final_msg, sizeof(final_msg), "%s[%s]%s: %s", prefix, string_level, thread_id, buffer);
+    size_t total_length_required =
+            strlen(prefix) +
+            (color ? strlen(color) : 0) +
+            strlen(string_level) +
+            (color ? strlen(ANSI_COLOR_RESET) : 0) +
+            strlen(thread_id) +
+            (color ? strlen(color) : 0) +
+            strlen(buffer) +
+            (color ? strlen(ANSI_COLOR_RESET) : 0) +
+            5; // +5 for '[', ']', ':', ' ', and '\0'
+
+    if (total_length_required >= FINAL_MSG_SIZE) {
+        buffer[sizeof(buffer) - (total_length_required - FINAL_MSG_SIZE + 1)] = '\0';
+    }
+
+    snprintf(final_msg, FINAL_MSG_SIZE, "%s[%s]%s: %s", prefix, string_level, thread_id, buffer);
 
     if (global_logger.config.log_to_console) {
         // Print to console
@@ -90,8 +108,7 @@ void log_internal(int level, const char *format, va_list args) {
         syslog(level, "%s", final_msg);
     }
 
-    // strdup() allocates memory using malloc() and needs to be freed
-    free(string_level);
+    free(final_msg);
 }
 
 void logger(LogLevel level, const char *format, ...) {

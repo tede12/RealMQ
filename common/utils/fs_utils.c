@@ -40,6 +40,8 @@ void save_stats_to_file(json_object **json_messages_ptr) {
 
     logger(LOG_LEVEL_DEBUG, "Saving statistics to file: %s", fullPath);
 
+    // Todo check if the file exists with bool check_file_exists(char* fullPath) and if it exists, append to it instead of overwriting it
+
     FILE *file = fopen(fullPath, "w");
     free(fullPath);
 
@@ -100,6 +102,16 @@ char *create_if_not_exist_folder(char *folder_path) {
         mkdir(folder_path, 0700);
     }
     return folder_path;
+}
+
+/**
+ * @brief Check if a file exists
+ * @param file_path
+ * @return true if the file exists, otherwise false
+ */
+bool check_file_exists(char *file_path) {
+    struct stat buffer;
+    return (stat(file_path, &buffer) == 0);
 }
 
 /**
