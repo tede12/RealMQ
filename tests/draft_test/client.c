@@ -138,5 +138,7 @@ int main(void) {
     zmq_close(dish);
     zmq_ctx_destroy(context_2);
 
+    release_config();
+
     return 0;
 }
