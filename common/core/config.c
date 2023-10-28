@@ -3,6 +3,7 @@
 #include <zmq.h>
 
 Config config;  // The global definition of the configuration
+char *full_address = NULL;
 
 /**
  * Get the address of the responder or receiver. Example: tcp://ip:port
@@ -11,7 +12,7 @@ Config config;  // The global definition of the configuration
  */
 char *get_address(AddressType address_type) {
     // protocol://ip:port
-    char *full_address = (char *) calloc(64, sizeof(char));
+    full_address = (char *) calloc(64, sizeof(char));
 
     // Ensure that the memory was allocated successfully
     if (full_address == NULL) {
@@ -298,6 +299,9 @@ void release_config() {
         free(*fields_to_free[i]);
         *fields_to_free[i] = NULL;
     }
+
+    // Free the full address
+    free(full_address);
 }
 
 // Return a string representation of the configuration.
