@@ -55,13 +55,13 @@ long long get_current_time_nanos() {
  * @brief Get the current time object
  * @return timespec
  */
-timespec getCurrentTime() {
+timespec get_current_time() {
     timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
         perror("clock_gettime");
         ts.tv_sec = 0;
         ts.tv_nsec = 0;
-        printf("[getCurrentTime][Error]: getting current time\n");
+        printf("[get_current_time][Error]: getting current time\n");
     }
     return ts;
 }
@@ -71,11 +71,11 @@ timespec getCurrentTime() {
  * @param ts pass NULL to get current time value or pass a timespec struct to get the time value of that struct
  * @return double
  */
-double getCurrentTimeValue(timespec *ts) {
+double get_current_time_value(timespec *ts) {
     timespec localTs;
 
     if (ts == NULL) {
-        localTs = getCurrentTime();
+        localTs = get_current_time();
         ts = &localTs;
     }
 
@@ -90,10 +90,10 @@ double getCurrentTimeValue(timespec *ts) {
  * @param end pass NULL to get current time value or pass a timespec struct to get the time value of that struct
  * @return double
  */
-double getElapsedTime(timespec start, timespec *end) {
+double get_elapsed_time(timespec start, timespec *end) {
     timespec localEnd;
     if (end == NULL) {
-        localEnd = getCurrentTime();
+        localEnd = get_current_time();
         end = &localEnd;
     }
     return (double) (end->tv_sec - start.tv_sec) + (double) (end->tv_nsec - start.tv_nsec) / 1e9;

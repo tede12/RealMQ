@@ -1,20 +1,20 @@
 #include <zmq.h>
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h> // for sleep()
 #include <pthread.h>
 #include "core/zhelpers.h"
 #include "utils/utils.h"
-#include "qos/accrual_detector.h"
 #include "core/logger.h"
 #include "core/config.h"
-#include "utils/time_utils.h"
 #include "string_manip.h"
 
+void *g_shared_context;
+int g_count_msg = 0;
+// mutex for g_count_msg
+pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 Logger client_logger;
-
 
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
@@ -33,6 +33,8 @@ void *responder_thread(void *arg) {
         logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
 
     }
+
+    logger(LOG_LEVEL_DEBUG, "Responder thread exiting");
     return NULL;
 }
 
@@ -40,39 +42,62 @@ void *responder_thread(void *arg) {
 void *client_thread(void *thread_id) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
+    int thread_num = *(int *) thread_id;
 
     int rc;
 
-    void *context = create_context();
     void *radio = create_socket(
-            context,
+            g_shared_context,
             get_zmq_type(CLIENT),
             get_address(MAIN_ADDRESS),
             config.signal_msg_timeout,
             NULL
     );
 
-    while (!interrupted) {
-        // Create a message ID
-        char *msg_id = generate_uuid();
+    char *msg_id;
 
-        // QoS - Send a heartbeat
-        send_heartbeat(radio, "GRP", false);
+    int count_msg = 0;
+
+    while (!interrupted) {
+        if (count_msg == config.num_messages) {
+            for (int i = 0; i < 3; i++) {
+                // Send 3 messages to notify the server that the client has finished sending messages
+                zmq_send_group(radio, "GRP", "STOP", 0);
+                sleep(1);
+                logger(LOG_LEVEL_INFO, "Sent STOP message");
+                interrupted = 1;
+            }
+            break;
+        }
+
+        // Create a message ID
+        msg_id = generate_uuid();
 
         rc = zmq_send_group(radio, "GRP", msg_id, 0);
         if (rc == -1) {
             printf("Error in sending message\n");
             break;
         }
+        logger(LOG_LEVEL_INFO2, "Sent message with ID: %s", msg_id);
 
-        // Save the message ID
-        add_message_id(msg_id);
+        if (count_msg % 100000 == 0 && count_msg != 0) {
+            logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
+        }
+        count_msg++;
 
-        sleep(3); // Send a message every second
+        sleep(1);
     }
 
+    // Add count_msg to g_count_msg
+    pthread_mutex_lock(&g_count_msg_mutex);
+    g_count_msg += count_msg;
+    pthread_mutex_unlock(&g_count_msg_mutex);
+
+    // Release the resources
     zmq_close(radio);
-    zmq_ctx_destroy(context);
+    free(msg_id);
+
+    logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
 
     return NULL;
 }
@@ -82,16 +107,8 @@ int main(void) {
     sleep(3);    // wait for server to start
     printf("Client started\n");
 
-    void *context_2 = create_context();
-
-//    // RADIO for CLIENT
-//    void *radio = create_socket(context, ZMQ_RADIO, "udp://127.0.0.1:5555", 1000, NULL);
-//    // -----------------------------------------------------------------------------------------------------------------
-//    // DISH for RESPONDER
-//    // -----------------------------------------------------------------------------------------------------------------
-//    void *dish = create_socket(context_2, ZMQ_DISH, "udp://127.0.0.1:5556", 1000, "REP");
-//    // -----------------------------------------------------------------------------------------------------------------
-
+    // Create a single context for the entire application
+    g_shared_context = create_context();
 
     // Load the configuration
     logConfig logger_config = {
@@ -112,33 +129,41 @@ int main(void) {
     // Print configuration
     print_configuration();
 
-
     void *dish = create_socket(
-            context_2,
+            g_shared_context,
             ZMQ_DISH,
             get_address(RESPONDER),
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );
 
-
     pthread_t responder;
     pthread_create(&responder, NULL, responder_thread, dish);
 
-
-    // use a thread for handling the received messages
-
-    pthread_t receiver;
-    size_t thread_id = 1;
-    pthread_create(&receiver, NULL, client_thread, &thread_id);
+    // Use threads to send messages
+    pthread_t clients[config.num_threads];
+    int thread_ids[config.num_threads];
+    for (int i = 0; i < config.num_threads; i++) {
+        thread_ids[i] = i;
+        pthread_create(&clients[i], NULL, client_thread, &thread_ids[i]);
+    }
+    // Wait for client threads to finish
+    for (int i = 0; i < config.num_threads; i++) {
+        pthread_join(clients[i], NULL);
+    }
 
     // Wait for the server thread to finish
     pthread_join(responder, NULL);
 
     zmq_close(dish);
-    zmq_ctx_destroy(context_2);
+    logger(LOG_LEVEL_INFO, "Closed DISH socket");
+    zmq_ctx_destroy(g_shared_context);
+    logger(LOG_LEVEL_INFO, "Destroyed context");
 
+    logger(LOG_LEVEL_INFO, "Total messages sent: %d", g_count_msg);
     release_config();
+    logger(LOG_LEVEL_INFO, "Released configuration");
 
     return 0;
 }
+

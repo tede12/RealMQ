@@ -57,6 +57,7 @@ typedef enum {
 
 
 extern Config config;
+extern char *g_ip_address;
 
 char *get_address(AddressType address_type);
 

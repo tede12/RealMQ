@@ -3,7 +3,7 @@
 #include <zmq.h>
 
 Config config;  // The global definition of the configuration
-char *full_address = NULL;
+char *g_ip_address = NULL;
 
 /**
  * Get the address of the responder or receiver. Example: tcp://ip:port
@@ -12,10 +12,10 @@ char *full_address = NULL;
  */
 char *get_address(AddressType address_type) {
     // protocol://ip:port
-    full_address = (char *) calloc(64, sizeof(char));
+    g_ip_address = (char *) calloc(64, sizeof(char));
 
     // Ensure that the memory was allocated successfully
-    if (full_address == NULL) {
+    if (g_ip_address == NULL) {
         logger(LOG_LEVEL_ERROR, "Failed to allocate memory for full address.");
         return NULL;
     }
@@ -30,18 +30,18 @@ char *get_address(AddressType address_type) {
             break;
         default:
             logger(LOG_LEVEL_ERROR, "Invalid address type.");
-            free(full_address);
+            free(g_ip_address);
             return NULL;
     }
 
-    int written = snprintf(full_address, 64, "%s://%s", config.protocol, address);
+    int written = snprintf(g_ip_address, 64, "%s://%s", config.protocol, address);
     if (written < 0 || written >= 64) {
         logger(LOG_LEVEL_ERROR, "Error or insufficient space while composing the full address.");
-        free(full_address);
+        free(g_ip_address);
         return NULL;
     }
 
-    return full_address;
+    return g_ip_address;
 }
 
 /**
@@ -301,7 +301,7 @@ void release_config() {
     }
 
     // Free the full address
-    free(full_address);
+    free(g_ip_address);
 }
 
 // Return a string representation of the configuration.
@@ -329,6 +329,7 @@ void print_configuration() {
              "Address Main/Responder: %s, %s\n"
              "Number of threads: %d\n"
              "Number of messages (x thread): %d (size %d Bytes)\n"
+             "Total messages: %d\n"
              "Use messages per minute: %s (%d msg/min)\n"
              "Use JSON: %s\n"
              "Save interval: %d s\n"
@@ -342,6 +343,7 @@ void print_configuration() {
              config.num_threads,
              config.num_messages,
              config.message_size,
+             config.num_threads * config.num_messages,
              config.use_msg_per_minute ? "yes" : "no", config.msg_per_minute,
              config.use_json ? "yes" : "no",
              config.save_interval_seconds,

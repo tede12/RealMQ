@@ -70,6 +70,15 @@ ProtocolType get_protocol_type(int socket_type) {
     }
 }
 
+int g_linger_timeout = 5000;   // 5 seconds
+
+void set_socket_options(void *socket, int timeout) {
+    // 3. Add timeout
+    zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    // 3. Add linger (linger is used to wait for messages to be sent before closing the socket)
+    zmq_setsockopt(socket, ZMQ_LINGER, &g_linger_timeout, sizeof(g_linger_timeout));
+}
+
 
 /**
  * Function to create a new ZMQ socket
@@ -80,11 +89,11 @@ ProtocolType get_protocol_type(int socket_type) {
  * @param timeout
  * @return
  */
-void *create_socket(void *context, int socket_type, const char *connection, int timeout, const  char *socket_group) {
+void *create_socket(void *context, int socket_type, const char *connection, int timeout, const char *socket_group) {
     /* Explanation of all steps for configuring a socket:
     1. TCP/UDP - [Create] a new socket
     2. TCP/UDP     - [Connect] or [bind] the socket
-    3. TCP/UDP - [Set] the socket options (ex. timeout)
+    3. TCP/UDP - [Set] the socket options (ex. timeout, linger)
     4. UDP     - [Join] the group (only for receiving messages)
      */
 
@@ -129,9 +138,10 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
                 return NULL;
             }
 
-            // 3. Add timeout option to the socket
-            zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            // 3. Add timeout and linger options to the socket
+            set_socket_options(socket, timeout);
             break;
+
 
         case UDP:
             if (socket_group == NULL) {
@@ -150,8 +160,9 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
                 }
             }
 
-            // 3. Add timeout option to the socket
-            zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            // 3. Add timeout and linger options to the socket
+            set_socket_options(socket, timeout);
+
 
             // 4. Join the group
             if (socket_group != NULL) {
