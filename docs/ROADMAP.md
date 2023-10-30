@@ -23,7 +23,7 @@ This document describes the current roadmap for RealMQ. It is a living document 
 |:------:|:---------------------------------------------------------------------------------|---------------|-------------------------------------------|
 |   ❌    | Implement mechanism for UDP to recognize lost packets                            | `in progress` | <a href=#>udp/packet-detection</a>        |
 |   ❌    | Modify message IDs and implement a method for space optimization                 | `ready`       | <a href=#>udp/msg-id-optimization</a>     |
-|   ❌    | Implement search interpolation log log n for lost message detection              | `ready`       | <a href=#>udp/interpolation-detection</a> |
+|   ❌    | Implement search interpolation log log n for lost message detection              | `in progress` | <a href=#>udp/interpolation-detection</a> |
 |   ❌    | Implement mechanism to resend lost packets                                       | `ready`       | <a href=#>udp/packet-resend</a>           |
 |   ❌    | Determine the correct threshold for the accrual detector for heartbeat frequency | `ready`       | <a href=#>udp/heartbeat-frequency</a>     |
 
