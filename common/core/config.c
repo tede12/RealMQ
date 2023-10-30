@@ -1,5 +1,6 @@
 #include "config.h"
 #include "logger.h"
+#include <signal.h> // for raise of SIGINT
 #include <zmq.h>
 
 Config config;  // The global definition of the configuration
