@@ -25,6 +25,21 @@ setup_venv() {
   fi
 }
 
+# Libczmq installation with drafts enabled (only for Debian-like systems)
+install_libczmq_with_draft_enable() {
+  echo "[INFO] Installing libczmq with drafts enabled..."
+
+  echo "[INFO] Installing necessary dependencies for libczmq..."
+  sudo apt-get install libtool pkg-config build-essential autoconf automake
+
+  git clone https://github.com/zeromq/libzmq
+  cd libzmq
+  ./autogen.sh
+  ./configure --with-libsodium --enable-drafts=yes
+  make
+  sudo make install
+}
+
 # MacOS installation
 install_macos() {
   echo "[INFO] Installing dependencies on MacOS..."
@@ -63,13 +78,12 @@ install_debian_like() {
     fi
   done
 
+  install_libczmq_with_draft_enable
+
   setup_venv
 }
 
-install_libczmq_with_draft_enable() {
-  echo "[INFO] Installing libczmq with drafts enabled..."
-  # todo finish this
-}
+
 
 # Detect the operating system and initiate the appropriate installation
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
