@@ -260,7 +260,7 @@ int main() {
     void *response_socket = create_socket(
             response_context,
             ZMQ_DISH,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );

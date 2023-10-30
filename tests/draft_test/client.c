@@ -65,7 +65,7 @@ void *client_thread(void *thread_id) {
                 zmq_send_group(radio, "GRP", "STOP", 0);
                 sleep(1);
                 logger(LOG_LEVEL_INFO, "Sent STOP message");
-                interrupted = 1;
+                handle_interrupt(0);
             }
             break;
         }
@@ -84,6 +84,7 @@ void *client_thread(void *thread_id) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
         }
         count_msg++;
+        free(msg_id);
 
         sleep(1);
     }
@@ -95,8 +96,6 @@ void *client_thread(void *thread_id) {
 
     // Release the resources
     zmq_close(radio);
-    free(msg_id);
-
     logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
 
     return NULL;
@@ -132,7 +131,7 @@ int main(void) {
     void *dish = create_socket(
             g_shared_context,
             ZMQ_DISH,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );

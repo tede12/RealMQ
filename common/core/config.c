@@ -6,12 +6,13 @@ Config config;  // The global definition of the configuration
 char *g_ip_address = NULL;
 
 /**
- * Get the address of the responder or receiver. Example: tcp://ip:port
+ * Get the address of the responder or receiver. Schema: <protocol>://<ip>:<port>
  * @param address_type
  * @return
  */
 char *get_address(AddressType address_type) {
-    // protocol://ip:port
+
+    if (g_ip_address) free(g_ip_address);  // prevent memory leak if the function is called multiple times
     g_ip_address = (char *) calloc(64, sizeof(char));
 
     // Ensure that the memory was allocated successfully
@@ -22,7 +23,7 @@ char *get_address(AddressType address_type) {
 
     const char *address;
     switch (address_type) {
-        case RESPONDER:
+        case RESPONDER_ADDRESS:
             address = config.responder_address;
             break;
         case MAIN_ADDRESS:
@@ -321,8 +322,10 @@ void print_configuration() {
     snprintf(qos_flag, 7, "no");
 #endif
 
-    char *main_address = get_address(MAIN_ADDRESS);
-    char *responder_address = get_address(RESPONDER);
+    char *main_address = malloc(32);
+    char *responder_address = malloc(32);
+    snprintf(main_address, 65, "%s", get_address(MAIN_ADDRESS));
+    snprintf(responder_address, 64, "%s", get_address(RESPONDER_ADDRESS));
 
     snprintf(configuration, 1024,
              "\n------------------------------------------------\nConfiguration:\n"
@@ -358,7 +361,6 @@ void print_configuration() {
     free(main_address);
     free(responder_address);
     free(configuration);
-    return;
 }
 
 

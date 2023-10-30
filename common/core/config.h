@@ -42,7 +42,7 @@ typedef struct Config {
 
 typedef enum {
     MAIN_ADDRESS,
-    RESPONDER
+    RESPONDER_ADDRESS
 } AddressType;
 
 typedef enum {

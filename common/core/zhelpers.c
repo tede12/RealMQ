@@ -70,7 +70,7 @@ ProtocolType get_protocol_type(int socket_type) {
     }
 }
 
-int g_linger_timeout = 5000;   // 5 seconds
+int g_linger_timeout = 30000;   // 30 seconds
 
 void set_socket_options(void *socket, int timeout) {
     // 3. Add timeout

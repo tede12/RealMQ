@@ -49,6 +49,8 @@ typedef enum {
     UDP
 } ProtocolType;
 
+extern int g_linger_timeout;
+
 // Function declarations
 void *create_context();
 

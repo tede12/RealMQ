@@ -20,7 +20,7 @@ void test_function_get_valid_address(void) {
     config.responder_address = "127.0.0.1:8000";
     config.protocol = "tcp";
 
-    char *address = get_address(RESPONDER);
+    char *address = get_address(RESPONDER_ADDRESS);
     TEST_ASSERT_NOT_NULL(address);
     TEST_ASSERT_EQUAL_STRING("tcp://127.0.0.1:8000", address);
     free(address); // assuming get_address allocates memory that should be freed

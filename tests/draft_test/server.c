@@ -14,9 +14,6 @@ Logger server_logger;
 int main(void) {
     printf("Server started\n");
 
-    int rc;
-    void *context = create_context();
-
     // Load the configuration
     logConfig logger_config = {
             .show_timestamp = 1,
@@ -37,6 +34,11 @@ int main(void) {
     // Print configuration
     print_configuration();
 
+    get_address(MAIN_ADDRESS);
+    get_address(RESPONDER_ADDRESS);
+
+    int rc;
+    void *context = create_context();
 
     // Dish socket
     void *dish = create_socket(
@@ -50,7 +52,7 @@ int main(void) {
     void *context2 = create_context();
     void *radio = create_socket(
             context2, ZMQ_RADIO,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             NULL
     );

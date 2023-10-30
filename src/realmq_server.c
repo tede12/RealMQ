@@ -64,7 +64,7 @@ void *server_thread(void *args) {
     void *context2 = create_context();
     void *responder = create_socket(
             context2, ZMQ_RADIO,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             NULL
     );
