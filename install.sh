@@ -66,6 +66,11 @@ install_debian_like() {
   setup_venv
 }
 
+install_libczmq_with_draft_enable() {
+  echo "[INFO] Installing libczmq with drafts enabled..."
+  # todo finish this
+}
+
 # Detect the operating system and initiate the appropriate installation
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   install_debian_like
