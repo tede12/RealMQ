@@ -36,12 +36,12 @@ long long get_current_time_millis();
 long long get_current_time_nanos();
 
 // Function to get the current time as timespec
-timespec getCurrentTime();
+timespec get_current_time();
 
 // Function to get the current time value as double
-double getCurrentTimeValue(timespec *ts);
+double get_current_time_value(timespec *ts);
 
 // Function to get the elapsed time between two timespec
-double getElapsedTime(timespec start, timespec *end);
+double get_elapsed_time(timespec start, timespec *end);
 
 #endif //TIME_UTILS_H

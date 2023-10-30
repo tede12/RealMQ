@@ -7,9 +7,10 @@ void setUp(void) {
     // Create file config for testing in /tmp
     FILE *fp = fopen("/tmp/config.yaml", "w");
     fprintf(fp, "# config.yaml\n\n# General settings\ngeneral:\n");
-    fprintf(fp, "\tstats_folder_path: tmp\n");
-    fprintf(fp, "\tprotocol: tcp\n");
-    fprintf(fp, "\tuse_json: 0\n");
+    // Using double space indentation
+    fprintf(fp, "  stats_folder_path: tmp\n");
+    fprintf(fp, "  protocol: tcp\n");
+    fprintf(fp, "  use_json: 0\n");
     fclose(fp);
 
 

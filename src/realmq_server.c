@@ -64,7 +64,7 @@ void *server_thread(void *args) {
     void *context2 = create_context();
     void *responder = create_socket(
             context2, ZMQ_RADIO,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             NULL
     );
@@ -82,7 +82,7 @@ void *server_thread(void *args) {
             // In this case no message received or timeout occurred
             continue;
         }
-        double recv_time = getCurrentTimeValue(NULL);
+        double recv_time = get_current_time_value(NULL);
 
 #ifdef QOS_RETRANSMISSION
         // Check if prefix of the message is "HB" (heartbeat)

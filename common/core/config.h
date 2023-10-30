@@ -14,6 +14,7 @@
 #include <stdlib.h>  // for strtol and free
 #include <string.h>
 #include <unistd.h> // for sleep function
+#include "core/zhelpers.h"
 
 typedef struct ActionType {
     char *name;
@@ -42,7 +43,7 @@ typedef struct Config {
 
 typedef enum {
     MAIN_ADDRESS,
-    RESPONDER
+    RESPONDER_ADDRESS
 } AddressType;
 
 typedef enum {
@@ -57,10 +58,13 @@ typedef enum {
 
 
 extern Config config;
+extern char *g_ip_address;
 
 char *get_address(AddressType address_type);
 
 const char *get_group(GroupType group_type);
+
+ProtocolType get_protocol_type(void);
 
 int get_zmq_type(RoleType roleType);
 

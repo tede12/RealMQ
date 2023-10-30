@@ -287,5 +287,8 @@ char **process_missed_message_ids(const char *buffer, size_t *missed_count) {
 void handle_interrupt(int sig) {
     (void) sig; // Avoid unused parameter warning
     interrupted = 1;
-    printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
+    g_linger_timeout = 0; // Set the linger timeout to 0 to force the socket to close immediately
+
+    if (sig == SIGINT)
+        printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
 }

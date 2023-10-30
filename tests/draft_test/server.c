@@ -14,16 +14,6 @@ Logger server_logger;
 int main(void) {
     printf("Server started\n");
 
-    int rc;
-    void *context = create_context();
-
-//    // DISH for SERVER
-//    void *dish = create_socket(context, ZMQ_DISH, "udp://127.0.0.1:5555", 2000, "GRP");
-//    // -----------------------------------------------------------------------------------------------------------------
-//    // RADIO for RESPONDER
-//    void *radio = create_socket(context, ZMQ_RADIO, "udp://127.0.0.1:5556", 2000, NULL);
-//    // -----------------------------------------------------------------------------------------------------------------
-
     // Load the configuration
     logConfig logger_config = {
             .show_timestamp = 1,
@@ -44,6 +34,11 @@ int main(void) {
     // Print configuration
     print_configuration();
 
+    get_address(MAIN_ADDRESS);
+    get_address(RESPONDER_ADDRESS);
+
+    int rc;
+    void *context = create_context();
 
     // Dish socket
     void *dish = create_socket(
@@ -57,11 +52,10 @@ int main(void) {
     void *context2 = create_context();
     void *radio = create_socket(
             context2, ZMQ_RADIO,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             NULL
     );
-
 
     int count_msg = 0;
 
@@ -73,39 +67,33 @@ int main(void) {
             continue;
         }
 
-        // Check if prefix of the message is "HB" (heartbeat)
-        if (strncmp(buffer, "HB", 2) == 0 || count_msg == 3) {
-            // Heartbeat received
-            printf("Heartbeat received\n");
-            // last id received
-            char *last_id = get_message_id(-1);
-            if (last_id == NULL) {
-                logger(LOG_LEVEL_WARN, "No message ids found, message_ids count: %zu", num_message_ids);
-                continue;
-            }
-            logger(LOG_LEVEL_WARN, "Sending last_id to client REP: %s", last_id);
-//            zmq_send_group(radio, "REP", last_id, 0);
-            process_message_ids(radio, last_id);
+        // If message start with "STOP" then stop the server
+        if (strncmp(buffer, "STOP", 4) == 0) {
+            logger(LOG_LEVEL_INFO, "Received STOP signal");
+            break;
+        } else if (strncmp(buffer, "START", 5) == 0) {
+            // Needed for the first message for TCP (slow joiner syndrome)
+            logger(LOG_LEVEL_INFO, "Received START signal");
             continue;
         }
 
-        // This is the case of a message received from a client
-        buffer[rc] = '\0'; // Null-terminate the string
-//        printf("Received from client [MAIN]: %s\n", buffer);
+        buffer[rc] = '\0';
+        logger(LOG_LEVEL_INFO2, "Received message: %s", buffer);
 
-        // Should be a double in string format
-        add_message_id(buffer);
 
         count_msg++;
 
-//        // Send a reply
-//        const char *msg = "Message sent from server [RESPONDER]";
-//        zmq_send_group(radio, "REP", msg, 0);
+        if (count_msg % 100000 == 0 && count_msg != 0) {
+            logger(LOG_LEVEL_INFO, "Received %d messages", count_msg);
+        }
     }
+
+    logger(LOG_LEVEL_INFO2, "Total received messages: %d", count_msg);
 
     zmq_close(radio);
     zmq_close(dish);
     zmq_ctx_destroy(context);
+    zmq_ctx_destroy(context2);
 
     release_config();
 

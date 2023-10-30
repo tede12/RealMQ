@@ -34,7 +34,7 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     sprintf(message, "Thread %d - Message %d", thread_num, messages_sent);
 
     // Calculate the send time
-    timespec send_time = getCurrentTime();
+    timespec send_time = get_current_time();
 
     // Create a JSON object for the message
     json_object *json_msg = json_object_new_object();
@@ -47,7 +47,7 @@ void send_payload(void *socket, int thread_num, int messages_sent) {
     // use unique id for each message based time_millis
     json_object_object_add(json_msg, "id", json_object_new_string(message_id));
     json_object_object_add(json_msg, "message", json_object_new_string(message));
-    json_object_object_add(json_msg, "send_time", json_object_new_double(getCurrentTimeValue(&send_time)));
+    json_object_object_add(json_msg, "send_time", json_object_new_double(get_current_time_value(&send_time)));
 
     int current_len = strlen(json_object_to_json_string(json_msg));
 
@@ -174,14 +174,14 @@ void *client_thread(void *thread_id) {
 
         if (config.use_msg_per_minute) {
             // Keep track of current time (for taking diff of a minute)
-            timespec current_time = getCurrentTime();
+            timespec current_time = get_current_time();
 
             // Calculate the waiting time between messages in microseconds to not exceed messages per minute
 //            int interval_between_messages_us = 60000000 / config.msg_per_minute; // 60 million microseconds in a minute
 
             for (int i = 0; i < config.msg_per_minute && messages_sent < config.num_messages && !interrupted; i++) {
                 // Calculate diff between current time and start time
-                double diff = getElapsedTime(current_time, NULL);
+                double diff = get_elapsed_time(current_time, NULL);
                 if (diff >= 60) {
                     // More than a minute has passed, these messages are out of scope
                     logger(LOG_LEVEL_WARN, "Message %d is out of scope", messages_sent);
@@ -260,7 +260,7 @@ int main() {
     void *response_socket = create_socket(
             response_context,
             ZMQ_DISH,
-            get_address(RESPONDER),
+            get_address(RESPONDER_ADDRESS),
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );
@@ -275,8 +275,8 @@ int main() {
 #endif
 
     // Print the initial configuration for the client
-    timespec start_time = getCurrentTime();
-    logger(LOG_LEVEL_DEBUG, "Start Time: %.3f", getCurrentTimeValue(&start_time));
+    timespec start_time = get_current_time();
+    logger(LOG_LEVEL_DEBUG, "Start Time: %.3f", get_current_time_value(&start_time));
 
     // Client threads
     pthread_t clients[config.num_threads];
@@ -291,7 +291,7 @@ int main() {
     }
 
     logger(LOG_LEVEL_DEBUG, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
-           getElapsedTime(start_time, NULL), config.server_action->sleep_starting_time);
+           get_elapsed_time(start_time, NULL), config.server_action->sleep_starting_time);
     logger(LOG_LEVEL_DEBUG, "Messages sent correctly: %ld", message_sent_correctly);
 
 #ifdef REALMQ_VERSION

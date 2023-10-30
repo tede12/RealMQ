@@ -4,26 +4,29 @@
 #include <zmq.h>
 
 Config config;  // The global definition of the configuration
-char *full_address = NULL;
+char *g_ip_address = NULL;
+pthread_mutex_t g_ip_address_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 /**
- * Get the address of the responder or receiver. Example: tcp://ip:port
+ * Get the address of the responder or receiver. Schema: <protocol>://<ip>:<port>
  * @param address_type
  * @return
  */
 char *get_address(AddressType address_type) {
-    // protocol://ip:port
-    full_address = (char *) calloc(64, sizeof(char));
+    pthread_mutex_lock(&g_ip_address_mutex);
+    if (g_ip_address) free(g_ip_address);  // prevent memory leak if the function is called multiple times
+    g_ip_address = (char *) calloc(64, sizeof(char));
 
     // Ensure that the memory was allocated successfully
-    if (full_address == NULL) {
+    if (g_ip_address == NULL) {
         logger(LOG_LEVEL_ERROR, "Failed to allocate memory for full address.");
         return NULL;
     }
 
     const char *address;
     switch (address_type) {
-        case RESPONDER:
+        case RESPONDER_ADDRESS:
             address = config.responder_address;
             break;
         case MAIN_ADDRESS:
@@ -31,18 +34,20 @@ char *get_address(AddressType address_type) {
             break;
         default:
             logger(LOG_LEVEL_ERROR, "Invalid address type.");
-            free(full_address);
+            free(g_ip_address);
+            g_ip_address = NULL;
             return NULL;
     }
 
-    int written = snprintf(full_address, 64, "%s://%s", config.protocol, address);
+    int written = snprintf(g_ip_address, 64, "%s://%s", config.protocol, address);
     if (written < 0 || written >= 64) {
         logger(LOG_LEVEL_ERROR, "Error or insufficient space while composing the full address.");
-        free(full_address);
+        free(g_ip_address);
         return NULL;
     }
 
-    return full_address;
+    pthread_mutex_unlock(&g_ip_address_mutex);
+    return g_ip_address;
 }
 
 /**
@@ -59,6 +64,18 @@ const char *get_group(GroupType group_type) {
         default:
             logger(LOG_LEVEL_ERROR, "Invalid group type.");
             return NULL;
+    }
+}
+
+ProtocolType get_protocol_type(void) {
+    if (strcmp(config.protocol, "tcp") == 0) {
+        return TCP;
+    } else if (strcmp(config.protocol, "udp") == 0) {
+        return UDP;
+    } else {
+        logger(LOG_LEVEL_ERROR, "Not handled protocol: %s", config.protocol);
+        raise(SIGINT);
+        return -1;
     }
 }
 
@@ -236,10 +253,18 @@ int read_config(const char *filename) {
 
     yaml_event_t event;
     char *key = NULL, *value = NULL;
-    while (yaml_parser_parse(&parser, &event) && event.type != YAML_STREAM_END_EVENT) {
-        if (event.type == YAML_SCALAR_EVENT) {
-            key = (char *) event.data.scalar.value;
+    int loop_count = 0;
 
+    while (yaml_parser_parse(&parser, &event) && event.type != YAML_STREAM_END_EVENT) {
+        loop_count++;
+        if (loop_count > 20) {
+            logger(LOG_LEVEL_ERROR, "Loop count exceeded. File is probably malformed.");
+            raise(SIGINT);
+        }
+        if (event.type == YAML_SCALAR_EVENT) {
+            loop_count = 0; // Reset the loop count
+
+            key = (char *) event.data.scalar.value;
             value = next_value(&parser);
 
             // If the value is NULL, then the key is a fixed value (e.g. "general", "client", "server" sections)
@@ -297,12 +322,16 @@ void release_config() {
 
     // Iterate over the array and free each field and set to NULL.
     for (int i = 0; fields_to_free[i] != NULL; i++) {
+        if (*fields_to_free[i] == NULL) continue;
+
         free(*fields_to_free[i]);
         *fields_to_free[i] = NULL;
     }
 
     // Free the full address
-    free(full_address);
+    pthread_mutex_lock(&g_ip_address_mutex);
+    if (g_ip_address) free(g_ip_address);
+    pthread_mutex_unlock(&g_ip_address_mutex);
 }
 
 // Return a string representation of the configuration.
@@ -322,14 +351,17 @@ void print_configuration() {
     snprintf(qos_flag, 7, "no");
 #endif
 
-    char *main_address = get_address(MAIN_ADDRESS);
-    char *responder_address = get_address(RESPONDER);
+    char *main_address = malloc(32);
+    char *responder_address = malloc(32);
+    snprintf(main_address, 65, "%s", get_address(MAIN_ADDRESS));
+    snprintf(responder_address, 64, "%s", get_address(RESPONDER_ADDRESS));
 
     snprintf(configuration, 1024,
              "\n------------------------------------------------\nConfiguration:\n"
              "Address Main/Responder: %s, %s\n"
              "Number of threads: %d\n"
              "Number of messages (x thread): %d (size %d Bytes)\n"
+             "Total messages: %d\n"
              "Use messages per minute: %s (%d msg/min)\n"
              "Use JSON: %s\n"
              "Save interval: %d s\n"
@@ -343,6 +375,7 @@ void print_configuration() {
              config.num_threads,
              config.num_messages,
              config.message_size,
+             config.num_threads * config.num_messages,
              config.use_msg_per_minute ? "yes" : "no", config.msg_per_minute,
              config.use_json ? "yes" : "no",
              config.save_interval_seconds,
@@ -357,7 +390,6 @@ void print_configuration() {
     free(main_address);
     free(responder_address);
     free(configuration);
-    return;
 }
 
 

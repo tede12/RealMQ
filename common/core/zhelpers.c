@@ -59,7 +59,7 @@ void *create_context() {
     return context;
 }
 
-ProtocolType get_protocol_type(int socket_type) {
+ProtocolType get_protocol_type_from_socket_type(int socket_type) {
     if ((socket_type >= 0) && (socket_type <= 11)) {    // 0 <= TCP <= 11
         return TCP;
     } else if ((socket_type >= 12) && (socket_type <= 20)) {  // 12<= UDP <= 20
@@ -68,6 +68,15 @@ ProtocolType get_protocol_type(int socket_type) {
         printf("Invalid socket type\n");
         return -1;
     }
+}
+
+int g_linger_timeout = 30000;   // 30 seconds
+
+void set_socket_options(void *socket, int timeout) {
+    // 3. Add timeout
+    zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    // 3. Add linger (linger is used to wait for messages to be sent before closing the socket)
+    zmq_setsockopt(socket, ZMQ_LINGER, &g_linger_timeout, sizeof(g_linger_timeout));
 }
 
 
@@ -80,11 +89,11 @@ ProtocolType get_protocol_type(int socket_type) {
  * @param timeout
  * @return
  */
-void *create_socket(void *context, int socket_type, const char *connection, int timeout, const  char *socket_group) {
+void *create_socket(void *context, int socket_type, const char *connection, int timeout, const char *socket_group) {
     /* Explanation of all steps for configuring a socket:
     1. TCP/UDP - [Create] a new socket
     2. TCP/UDP     - [Connect] or [bind] the socket
-    3. TCP/UDP - [Set] the socket options (ex. timeout)
+    3. TCP/UDP - [Set] the socket options (ex. timeout, linger)
     4. UDP     - [Join] the group (only for receiving messages)
      */
 
@@ -104,7 +113,7 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
      * this means that there will be a bind operation
      */
 
-    switch (get_protocol_type(socket_type)) {
+    switch (get_protocol_type_from_socket_type(socket_type)) {
         case TCP:
             if (socket_type == get_zmq_type(CLIENT)) {
                 // 2. Connect is used for sending messages
@@ -129,9 +138,10 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
                 return NULL;
             }
 
-            // 3. Add timeout option to the socket
-            zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            // 3. Add timeout and linger options to the socket
+            set_socket_options(socket, timeout);
             break;
+
 
         case UDP:
             if (socket_group == NULL) {
@@ -150,8 +160,9 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
                 }
             }
 
-            // 3. Add timeout option to the socket
-            zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            // 3. Add timeout and linger options to the socket
+            set_socket_options(socket, timeout);
+
 
             // 4. Join the group
             if (socket_group != NULL) {
@@ -164,7 +175,7 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
 
             break;
         default:
-            logger(LOG_LEVEL_ERROR, "Invalid protocol type [%d]", get_protocol_type(socket_type));
+            logger(LOG_LEVEL_ERROR, "Invalid protocol type [%d]", get_protocol_type_from_socket_type(socket_type));
             return NULL;
     }
 
