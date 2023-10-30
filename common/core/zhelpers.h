@@ -54,7 +54,7 @@ extern int g_linger_timeout;
 // Function declarations
 void *create_context();
 
-ProtocolType get_protocol_type(int socket_type);
+ProtocolType get_protocol_type_from_socket_type(int socket_type);
 
 void *create_socket(void *context, int socket_type, const char *connection, int timeout, const char *socket_group);
 

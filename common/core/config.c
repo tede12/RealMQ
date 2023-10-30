@@ -4,6 +4,8 @@
 
 Config config;  // The global definition of the configuration
 char *g_ip_address = NULL;
+pthread_mutex_t g_ip_address_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 /**
  * Get the address of the responder or receiver. Schema: <protocol>://<ip>:<port>
@@ -11,7 +13,7 @@ char *g_ip_address = NULL;
  * @return
  */
 char *get_address(AddressType address_type) {
-
+    pthread_mutex_lock(&g_ip_address_mutex);
     if (g_ip_address) free(g_ip_address);  // prevent memory leak if the function is called multiple times
     g_ip_address = (char *) calloc(64, sizeof(char));
 
@@ -32,6 +34,7 @@ char *get_address(AddressType address_type) {
         default:
             logger(LOG_LEVEL_ERROR, "Invalid address type.");
             free(g_ip_address);
+            g_ip_address = NULL;
             return NULL;
     }
 
@@ -42,6 +45,7 @@ char *get_address(AddressType address_type) {
         return NULL;
     }
 
+    pthread_mutex_unlock(&g_ip_address_mutex);
     return g_ip_address;
 }
 
@@ -59,6 +63,18 @@ const char *get_group(GroupType group_type) {
         default:
             logger(LOG_LEVEL_ERROR, "Invalid group type.");
             return NULL;
+    }
+}
+
+ProtocolType get_protocol_type(void) {
+    if (strcmp(config.protocol, "tcp") == 0) {
+        return TCP;
+    } else if (strcmp(config.protocol, "udp") == 0) {
+        return UDP;
+    } else {
+        logger(LOG_LEVEL_ERROR, "Not handled protocol: %s", config.protocol);
+        raise(SIGINT);
+        return -1;
     }
 }
 
@@ -236,10 +252,18 @@ int read_config(const char *filename) {
 
     yaml_event_t event;
     char *key = NULL, *value = NULL;
-    while (yaml_parser_parse(&parser, &event) && event.type != YAML_STREAM_END_EVENT) {
-        if (event.type == YAML_SCALAR_EVENT) {
-            key = (char *) event.data.scalar.value;
+    int loop_count = 0;
 
+    while (yaml_parser_parse(&parser, &event) && event.type != YAML_STREAM_END_EVENT) {
+        loop_count++;
+        if (loop_count > 20) {
+            logger(LOG_LEVEL_ERROR, "Loop count exceeded. File is probably malformed.");
+            raise(SIGINT);
+        }
+        if (event.type == YAML_SCALAR_EVENT) {
+            loop_count = 0; // Reset the loop count
+
+            key = (char *) event.data.scalar.value;
             value = next_value(&parser);
 
             // If the value is NULL, then the key is a fixed value (e.g. "general", "client", "server" sections)
@@ -297,12 +321,16 @@ void release_config() {
 
     // Iterate over the array and free each field and set to NULL.
     for (int i = 0; fields_to_free[i] != NULL; i++) {
+        if (*fields_to_free[i] == NULL) continue;
+
         free(*fields_to_free[i]);
         *fields_to_free[i] = NULL;
     }
 
     // Free the full address
-    free(g_ip_address);
+    pthread_mutex_lock(&g_ip_address_mutex);
+    if (g_ip_address) free(g_ip_address);
+    pthread_mutex_unlock(&g_ip_address_mutex);
 }
 
 // Return a string representation of the configuration.

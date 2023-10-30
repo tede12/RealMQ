@@ -57,7 +57,6 @@ int main(void) {
             NULL
     );
 
-
     int count_msg = 0;
 
     while (!interrupted) {
@@ -72,6 +71,10 @@ int main(void) {
         if (strncmp(buffer, "STOP", 4) == 0) {
             logger(LOG_LEVEL_INFO, "Received STOP signal");
             break;
+        } else if (strncmp(buffer, "START", 5) == 0) {
+            // Needed for the first message for TCP (slow joiner syndrome)
+            logger(LOG_LEVEL_INFO, "Received START signal");
+            continue;
         }
 
         buffer[rc] = '\0';

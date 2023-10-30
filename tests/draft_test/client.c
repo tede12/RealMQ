@@ -54,6 +54,17 @@ void *client_thread(void *thread_id) {
             NULL
     );
 
+    // Send first message only with TCP for avoiding the problem of "slow joiner syndrome."
+    if (get_protocol_type() == TCP) {
+        rc = zmq_send_group(radio, "GRP", "START", 0);
+        if (rc == -1) {
+            printf("Error in sending message\n");
+            return NULL;
+        }
+        logger(LOG_LEVEL_INFO, "Sent START message");
+        sleep(2);
+    }
+
     char *msg_id;
 
     int count_msg = 0;
@@ -85,8 +96,6 @@ void *client_thread(void *thread_id) {
         }
         count_msg++;
         free(msg_id);
-
-        sleep(1);
     }
 
     // Add count_msg to g_count_msg

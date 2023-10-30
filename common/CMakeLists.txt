@@ -10,6 +10,8 @@ set(COMMON_SOURCE
         #Qos
         qos/accrual_detector.h qos/accrual_detector.c
         qos/message_queue.h qos/message_queue.c
+        qos/interpolation_search.h qos/interpolation_search.c
+        qos/dynamic_array.h qos/dynamic_array.c
 
 
         # Utils

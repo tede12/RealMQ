@@ -59,6 +59,8 @@ set(
         # Qos
         common/qos/accrual_detector.c
         common/qos/message_queue.c
+        common/qos/interpolation_search.c
+        common/qos/dynamic_array.c
 
         # Utils
         common/utils/fs_utils.c
@@ -81,7 +83,7 @@ function(target_link_libraries_realmq target)
             ${UUID_LIBRARIES}
             Threads::Threads
             m # libm
-            )
+    )
 endfunction()
 
 # Executables
@@ -97,6 +99,13 @@ add_executable(server tests/draft_test/server.c ${SOURCE_FILES})
 
 target_link_libraries_realmq(client)
 target_link_libraries_realmq(server)
+
+add_executable(client2 tests/simple_test/client.c ${SOURCE_FILES})
+add_executable(server2 tests/simple_test/server.c ${SOURCE_FILES})
+
+target_link_libraries_realmq(client2)
+target_link_libraries_realmq(server2)
+
 # ----------------------------------------------------------------------------------------
 
 # ------------------------------- Unit Testing ---------------------------------------
@@ -147,6 +156,7 @@ add_unity_test(test_convert_string_to_int tests/test_convert_string_to_int.c)
 add_unity_test(test_process_missed_message_ids tests/test_process_missed_message_ids.c)
 add_unity_test(test_fs_utils tests/test_fs_utils.c)
 add_unity_test(test_config tests/test_config.c)
+add_unity_test(test_dynamic_array tests/test_dynamic_array.c)
 # ----------------------------------------------------------------------------------------
 
 

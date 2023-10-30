@@ -1,7 +1,6 @@
 #include "unity.h"
 #include "core/config.h" // assuming this header file contains the declaration of get_address function
 
-extern Config config; // declaring the external config object
 
 void setUp(void) {
     // set stuff up here
@@ -13,7 +12,6 @@ void setUp(void) {
 
 void tearDown(void) {
     // clean stuff up here
-//    release_config();
 }
 
 void test_function_get_valid_address(void) {
@@ -23,7 +21,6 @@ void test_function_get_valid_address(void) {
     char *address = get_address(RESPONDER_ADDRESS);
     TEST_ASSERT_NOT_NULL(address);
     TEST_ASSERT_EQUAL_STRING("tcp://127.0.0.1:8000", address);
-    free(address); // assuming get_address allocates memory that should be freed
 }
 
 void test_function_get_invalid_address_type(void) {
@@ -40,6 +37,6 @@ int main(void) {
     RUN_TEST(test_function_get_valid_address);
     RUN_TEST(test_function_get_invalid_address_type);
     // other test cases here
-
+    release_config();
     return UNITY_END();
 }

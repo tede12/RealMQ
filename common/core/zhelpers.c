@@ -59,7 +59,7 @@ void *create_context() {
     return context;
 }
 
-ProtocolType get_protocol_type(int socket_type) {
+ProtocolType get_protocol_type_from_socket_type(int socket_type) {
     if ((socket_type >= 0) && (socket_type <= 11)) {    // 0 <= TCP <= 11
         return TCP;
     } else if ((socket_type >= 12) && (socket_type <= 20)) {  // 12<= UDP <= 20
@@ -113,7 +113,7 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
      * this means that there will be a bind operation
      */
 
-    switch (get_protocol_type(socket_type)) {
+    switch (get_protocol_type_from_socket_type(socket_type)) {
         case TCP:
             if (socket_type == get_zmq_type(CLIENT)) {
                 // 2. Connect is used for sending messages
@@ -175,7 +175,7 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
 
             break;
         default:
-            logger(LOG_LEVEL_ERROR, "Invalid protocol type [%d]", get_protocol_type(socket_type));
+            logger(LOG_LEVEL_ERROR, "Invalid protocol type [%d]", get_protocol_type_from_socket_type(socket_type));
             return NULL;
     }
 

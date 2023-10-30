@@ -288,5 +288,7 @@ void handle_interrupt(int sig) {
     (void) sig; // Avoid unused parameter warning
     interrupted = 1;
     g_linger_timeout = 0; // Set the linger timeout to 0 to force the socket to close immediately
-    printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
+
+    if (sig == SIGINT)
+        printf("\n[WARNING]: Interruzione da tastiera ricevuta (Ctrl+C)\n");
 }
