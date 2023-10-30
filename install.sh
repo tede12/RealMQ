@@ -36,7 +36,7 @@ install_libczmq_with_draft_enable() {
   cd libzmq
   ./autogen.sh
   ./configure --with-libsodium --enable-drafts=yes
-  make
+  make -j $(nproc)
   sudo make install
 }
 

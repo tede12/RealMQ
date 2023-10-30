@@ -100,12 +100,6 @@ add_executable(server tests/draft_test/server.c ${SOURCE_FILES})
 target_link_libraries_realmq(client)
 target_link_libraries_realmq(server)
 
-add_executable(client2 tests/simple_test/client.c ${SOURCE_FILES})
-add_executable(server2 tests/simple_test/server.c ${SOURCE_FILES})
-
-target_link_libraries_realmq(client2)
-target_link_libraries_realmq(server2)
-
 # ----------------------------------------------------------------------------------------
 
 # ------------------------------- Unit Testing ---------------------------------------
