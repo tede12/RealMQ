@@ -329,9 +329,7 @@ void release_config() {
     }
 
     // Free the full address
-    pthread_mutex_lock(&g_ip_address_mutex);
     if (g_ip_address) free(g_ip_address);
-    pthread_mutex_unlock(&g_ip_address_mutex);
 }
 
 // Return a string representation of the configuration.

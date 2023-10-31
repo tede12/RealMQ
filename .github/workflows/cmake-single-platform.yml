@@ -22,8 +22,37 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Cache Python dependencies
+        # Cache python dependencies
+        id: cache-python-deps
+        uses: actions/cache@v2
+        with:
+          path: venv
+          key: python-deps-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Cache libczmq and other dependencies
+        # Cache libczmq and other dependencies
+        id: cache-lib-deps
+        uses: actions/cache@v2
+        with:
+          path: |
+            /usr/local/lib/
+            /usr/local/include/
+          key: lib-deps-${{ runner.os }}
+
+      - name: Cache apt packages
+        # Cache apt packages
+        id: cache-apt-packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            /var/lib/apt/lists
+            /var/cache/apt/archives
+          key: apt-packages-${{ runner.os }}-${{ hashFiles('install.sh') }}
+
       - name: Install dependencies
-        # Installation script
+        if: steps.cache-python-deps.outputs.cache-hit != 'true' || steps.cache-lib-deps.outputs.cache-hit != 'true' || steps.cache-apt-packages.outputs.cache-hit != 'true'
+        # Install dependencies
         run: ./install.sh
 
       - name: Configure CMake
