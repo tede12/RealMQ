@@ -3,6 +3,7 @@ project(RealMQ C)
 
 set(CMAKE_C_STANDARD 11)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g -OX") # Address Sanitizer
 
 # Find ZeroMQ, CZMQ, JSON-C, libyaml, and Threads
 find_package(PkgConfig REQUIRED)

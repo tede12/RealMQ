@@ -1,5 +1,6 @@
 #include "dynamic_array.h"
 #include "core/logger.h"
+#include <inttypes.h>
 
 // Atomic for thread-safe unique message ID generation
 volatile uint64_t atomic_msg_id = 0;
@@ -55,7 +56,7 @@ void add_to_dynamic_array(DynamicArray *array, uint64_t value) {
 void print_dynamic_array(DynamicArray *array) {
     printf("Dynamic array: ");
     for (size_t i = 0; i < array->size; i++) {
-        printf("%llu ", array->data[i]);
+        printf("%" PRIu64 " ", array->data[i]);
     }
     printf("\n");
 }

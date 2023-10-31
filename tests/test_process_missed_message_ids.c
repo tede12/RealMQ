@@ -5,7 +5,6 @@
 char **generate_uuids(size_t count) {
     char **uuids = (char **) malloc(count * sizeof(char *));
     for (size_t i = 0; i < count; ++i) {
-        uuids[i] = (char *) malloc(37);
         uuids[i] = generate_uuid();
     }
     return uuids;
@@ -25,18 +24,7 @@ void setUp(void) {
     message_ids = generate_uuids(num_message_ids);
 }
 
-void tearDown(void) {
-    // Clean up message_ids
-    for (size_t i = 0; i < num_message_ids; ++i) {
-        free(message_ids[i]);
-    }
-    free(message_ids);
-    message_ids = NULL;
-    num_message_ids = 0;
-
-    // Destroy mutex
-    pthread_mutex_destroy(&message_ids_mutex);
-}
+void tearDown(void) {}
 
 void test_process_missed_message_ids(void) {
     // Create a buffer of IDs, deliberately missing the last generated UUID
@@ -70,9 +58,6 @@ void test_process_missed_message_ids(void) {
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
-
     RUN_TEST(test_process_missed_message_ids);
-    // todo add more test cases here
-
     return UNITY_END();
 }
