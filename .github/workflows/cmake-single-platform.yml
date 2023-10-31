@@ -30,6 +30,24 @@ jobs:
           path: venv
           key: python-deps-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
 
+      - name: Create apt-cache directory  # For avoiding permission denied error
+        run: mkdir -p ${{github.workspace}}/apt-cache
+
+
+      - name: Restore apt files from cache
+        id: cache-apt-packages
+        uses: actions/cache@v2
+        with:
+          path: ${{github.workspace}}/apt-cache
+          key: apt-packages-${{ runner.os }}-${{ hashFiles('install.sh') }}
+
+
+      - name: Copy apt files back from cache directory
+        if: steps.cache-apt-packages.outputs.cache-hit == 'true'
+        run: |
+          sudo cp -r ${{github.workspace}}/apt-cache/lists/* /var/lib/apt/lists/
+          sudo cp -r ${{github.workspace}}/apt-cache/archives/* /var/cache/apt/archives/
+
       - name: Cache libczmq and other dependencies
         # Cache libczmq and other dependencies
         id: cache-lib-deps
@@ -40,20 +58,16 @@ jobs:
             /usr/local/include/
           key: lib-deps-${{ runner.os }}
 
-      - name: Cache apt packages
-        # Cache apt packages
-        id: cache-apt-packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            /var/lib/apt/lists
-            /var/cache/apt/archives
-          key: apt-packages-${{ runner.os }}-${{ hashFiles('install.sh') }}
-
       - name: Install dependencies
         if: steps.cache-python-deps.outputs.cache-hit != 'true' || steps.cache-lib-deps.outputs.cache-hit != 'true' || steps.cache-apt-packages.outputs.cache-hit != 'true'
         # Install dependencies
         run: ./install.sh
+
+      - name: Copy apt files for caching
+        if: steps.cache-apt-packages.outputs.cache-hit != 'true'
+        run: |
+          sudo cp -r /var/lib/apt/lists/* ${{github.workspace}}/apt-cache/
+          sudo cp -r /var/cache/apt/archives/* ${{github.workspace}}/apt-cache/
 
       - name: Configure CMake
         # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
