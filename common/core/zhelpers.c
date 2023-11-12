@@ -208,4 +208,14 @@ int zmq_send_group(void *socket, const char *group, const char *msg, int flags) 
     return rc;
 }
 
+int zmq_receive(void *socket, char *buffer, int flags) {
+    int rc = zmq_recv(socket, buffer, sizeof(buffer) - 1, flags);
+    if (rc == -1 && errno == EAGAIN) {
+        // Timeout occurred
+        return -1;
+    }
+    buffer[rc] = '\0'; // Null-terminate the string
+    return rc;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------

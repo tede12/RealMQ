@@ -61,9 +61,7 @@ int main(void) {
 
     while (!interrupted) {
         char buffer[1024];
-        rc = zmq_recv(dish, buffer, 1023, 0);
-        if (rc == -1 && errno == EAGAIN) {
-            // Timeout occurred
+        if (zmq_receive(dish, buffer, 0) == -1) {
             continue;
         }
 
@@ -75,11 +73,13 @@ int main(void) {
             // Needed for the first message for TCP (slow joiner syndrome)
             logger(LOG_LEVEL_INFO, "Received START signal");
             continue;
+        } else if (strncmp(buffer, "HB", 2) == 0) {
+            // UDP Packet Detection
+            logger(LOG_LEVEL_INFO2, "Received HB signal");
+            continue;
         }
 
-        buffer[rc] = '\0';
-        logger(LOG_LEVEL_INFO2, "Received message: %s", buffer);
-
+//        logger(LOG_LEVEL_INFO2, "Received message: %s", buffer);
 
         count_msg++;
 

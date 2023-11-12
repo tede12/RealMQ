@@ -60,6 +60,8 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
 
 int zmq_send_group(void *socket, const char *group, const char *msg, int flags);
 
+int zmq_receive(void *socket, char *buffer, int flags);
+
 char *s_recv(void *socket);
 
 int s_send(void *socket, char *string);

@@ -17,17 +17,71 @@
 // =====================================================================================================================
 
 
-#define HEARTBEAT_INTERVAL 2 // Interval between heartbeats (in seconds)
-#define PHI_THRESHOLD 2.0    // Threshold of the phi value to consider a disconnection
-#define WINDOW_SIZE 10       // Size of the window for the samples, used in the rolling mean and variance
+#define PHI_THRESHOLD 0.10                   // Threshold of the phi value to consider a disconnection
+#define WINDOW_SIZE 10                      // Size of the window for the samples, used in the rolling mean and variance
+#define INITIAL_HEARTBEAT_INTERVAL 0.01     // Initial heartbeat interval (in seconds)
+#define MAX_HEARTBEAT_INTERVAL 1            // Maximum heartbeat interval (in seconds)
+#define MIN_HEARTBEAT_INTERVAL 0.1          // Minimum heartbeat interval   (in seconds)
+
 
 // Global variables to store the times of the last heartbeats
 time_t last_heartbeat_times[WINDOW_SIZE];
 int last_heartbeat_index = 0;
-double mean = HEARTBEAT_INTERVAL;
+double mean = INITIAL_HEARTBEAT_INTERVAL;
 double variance = 0.0;
+double lost_message_rate[WINDOW_SIZE]; // The rate of lost messages
+int lost_message_rate_index = 0;
 
-bool log_heartbeat = false;
+bool log_heartbeat = true;
+
+/**
+ * Function to update the Phi Detector parameters, based on the number of missed messages.
+ * This function updates the mean and variance of the heartbeat arrival times.
+ * @param missed_count The number of missed messages
+ */
+void update_phi_detector(size_t missed_count) {
+    logger(LOG_LEVEL_DEBUG, "Updating Phi Detector, missed count: %zu", missed_count);
+    time_t current_time = time(NULL);
+
+    // Update the times of the last heartbeats and the lost message rate
+    last_heartbeat_times[last_heartbeat_index] = current_time;
+    lost_message_rate[lost_message_rate_index] = (double) missed_count;
+    last_heartbeat_index = (last_heartbeat_index + 1) % WINDOW_SIZE;
+    lost_message_rate_index = (lost_message_rate_index + 1) % WINDOW_SIZE;
+
+    // Calculate the average lost message rate and the average time difference
+    double total_lost = 0.0;
+    double total_time_diff = 0.0;
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        total_lost += lost_message_rate[i];
+
+        // Calculate time differences between consecutive heartbeats
+        if (i > 0) {
+            double time_diff = difftime(last_heartbeat_times[i], last_heartbeat_times[i - 1]);
+            total_time_diff += time_diff;
+        }
+    }
+    double average_lost_rate = total_lost / WINDOW_SIZE;
+    double average_time_diff = total_time_diff / (WINDOW_SIZE - 1);
+
+    // Calculate the variance
+    double variance_sum = 0.0;
+    for (int i = 1; i < WINDOW_SIZE; i++) {
+        double time_diff = difftime(last_heartbeat_times[i], last_heartbeat_times[i - 1]);
+        variance_sum += pow(time_diff - average_time_diff, 2);
+    }
+    variance = variance_sum / (WINDOW_SIZE - 1);
+
+    // Adjust the heartbeat interval based on the average lost rate and variance
+    if (average_lost_rate > 0) {
+        // If there is an average loss, decrease the interval, taking into account the variance
+        mean = fmax(MIN_HEARTBEAT_INTERVAL, mean * (1 - average_lost_rate) * (1 + sqrt(variance)));
+    } else {
+        // If there are no losses, increase the interval, but moderate the increase based on the variance
+        mean = fmin(MAX_HEARTBEAT_INTERVAL, mean * 1.1 / (1 + sqrt(variance))); // Conservative increase
+    }
+}
+
 
 /**
  * Function to calculate the Phi value based on the current time.
@@ -42,6 +96,7 @@ double calculate_phi(time_t current_time) {
     double phi = -log10(exp(-time_diff / mean));
     return phi;
 }
+
 
 /**
  * Function to update the Phi Accrual Failure Detector parameters.
@@ -99,7 +154,7 @@ void send_heartbeat(void *socket, const char *group, bool force_send) {
         // Update the parameters of the Phi Accrual Failure Detector
         update_phi_accrual_failure_detector(current_time);
     } else {
-        if (log_heartbeat) logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
+//        if (log_heartbeat) logger(LOG_LEVEL_INFO2, "Heartbeat not sent, phi: %f", phi);
     }
 }
 

@@ -8,6 +8,8 @@
 #include "core/logger.h"
 #include "core/config.h"
 #include "string_manip.h"
+#include "qos/accrual_detector.h"
+#include <ctype.h>
 
 void *g_shared_context;
 int g_count_msg = 0;
@@ -20,16 +22,22 @@ void *responder_thread(void *arg) {
     void *socket = (void *) arg;
     while (!interrupted) {
         char buffer[1024];
-        int rc = zmq_recv(socket, buffer, 1023, 0);
-        if (rc == -1 && errno == EAGAIN) {
-            // Timeout occurred
+        if (zmq_receive(socket, buffer, 0) == -1) {
             continue;
         }
 
-        buffer[rc] = '\0'; // Null-terminate the string
+        // Check if buffer is a number
+        for (int i = 0; i < strlen(buffer); i++) {
+            if (!isdigit(buffer[i])) {
+                logger(LOG_LEVEL_WARN, "Received message is not a number: %s", buffer);
+                continue;
+            }
+        }
 
-        size_t missed_count = 0;
-        char **missed_ids = process_missed_message_ids(buffer, &missed_count);
+        size_t missed_count = strtoul(buffer, NULL, 10);
+        update_phi_detector(missed_count);
+
+//        char **missed_ids = process_missed_message_ids(buffer, &missed_count);
         logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
 
     }
@@ -69,7 +77,10 @@ void *client_thread(void *thread_id) {
 
     int count_msg = 0;
 
+    // Message Loop
     while (!interrupted) {
+
+        // Only used for STOPPING thread
         if (count_msg == config.num_messages) {
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
@@ -81,6 +92,11 @@ void *client_thread(void *thread_id) {
             break;
         }
 
+        // ----------------------------------------- PACKET DETECTION --------------------------------------------------
+        // Send a heartbeat before starting to send messages
+        send_heartbeat(radio, get_group(MAIN_GROUP), false);
+        // -------------------------------------------------------------------------------------------------------------
+
         // Create a message ID
         msg_id = generate_uuid();
 
@@ -89,7 +105,7 @@ void *client_thread(void *thread_id) {
             printf("Error in sending message\n");
             break;
         }
-        logger(LOG_LEVEL_INFO2, "Sent message with ID: %s", msg_id);
+//        logger(LOG_LEVEL_INFO2, "Sent message with ID: %s", msg_id);
 
         if (count_msg % 100000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
