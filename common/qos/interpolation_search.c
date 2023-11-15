@@ -1,6 +1,5 @@
 #include "interpolation_search.h"
 
-
 /**
  * @brief Interpolation search algorithm function.
  * @param array Dynamic array to search in.
@@ -9,18 +8,24 @@
  */
 long long interpolate_search(DynamicArray *array, uint64_t msg_id) {
     size_t low = 0, high = array->size - 1;
-    while (low <= high && msg_id >= array->data[low] && msg_id <= array->data[high]) {
-        if (low == high) return array->data[low] == msg_id;
+    while (low <= high && msg_id >= array->data[low].id && msg_id <= array->data[high].id) {
+        if (low == high) {
+            if (array->data[low].id == msg_id) return (long long) low;
+            break;
+        }
 
+        // Calculate position using the formula for interpolation search
         unsigned long long pos = low + (
-                ((unsigned long long) (high - low) / (array->data[high] - array->data[low]))
-                * (msg_id - array->data[low])
+                ((unsigned long long) (high - low) / (array->data[high].id - array->data[low].id))
+                * (msg_id - array->data[low].id)
         );
 
-        if (array->data[pos] == msg_id) return (long long) pos;
-        if (array->data[pos] < msg_id) low = pos + 1;
+        // Check boundaries
+        if (pos < low || pos > high) break;
+
+        if (array->data[pos].id == msg_id) return (long long) pos;
+        if (array->data[pos].id < msg_id) low = pos + 1;
         else high = pos - 1;
     }
     return -1;
 }
-

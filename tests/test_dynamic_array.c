@@ -3,6 +3,7 @@
 #include "qos/dynamic_array.h"
 #include "qos/interpolation_search.h"
 
+
 // Create a new dynamic array
 DynamicArray g_array;
 
@@ -10,11 +11,14 @@ void setUp(void) {
     // Populate the array with some values
     init_dynamic_array(&g_array, 100000);
 
-    for (int i = 0; i < 100000; i++) {
-        add_to_dynamic_array(&g_array, i);
+    for (uint64_t i = 0; i < 100000; i++) {
+        Message msg;
+        msg.id = i;
+        snprintf(msg.content, MAX_MESSAGE_LENGTH, "Message %llu", i);
+        add_to_dynamic_array(&g_array, msg);
     }
-//    // Print the array
-//    print_dynamic_array(&array);
+    // Print the array if needed
+    // print_dynamic_array(&g_array);
 }
 
 void tearDown(void) {

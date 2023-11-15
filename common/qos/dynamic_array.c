@@ -16,10 +16,11 @@ DynamicArray awaiting_ack_msg_ids;
  * @param initial_capacity
  */
 void init_dynamic_array(DynamicArray *array, size_t initial_capacity) {
-    array->data = malloc(initial_capacity * sizeof(uint64_t));
+    array->data = malloc(initial_capacity * sizeof(Message));
     array->capacity = initial_capacity;
     array->size = 0;
 }
+
 
 /**
  * @brief Resize the dynamic array by 50% of its current capacity.
@@ -27,7 +28,7 @@ void init_dynamic_array(DynamicArray *array, size_t initial_capacity) {
  */
 void resize_dynamic_array(DynamicArray *array) {
     size_t new_capacity = array->capacity + (array->capacity / 2); // 50% increase
-    array->data = realloc(array->data, new_capacity * sizeof(uint64_t));
+    array->data = realloc(array->data, new_capacity * sizeof(Message));
     // fixme if realloc fails, we lose the data in the array (should be handled in some way)
     if (array->data == NULL) {
         logger(LOG_LEVEL_ERROR, "Failed to resize dynamic array");
@@ -36,16 +37,17 @@ void resize_dynamic_array(DynamicArray *array) {
     array->capacity = new_capacity;
 }
 
+
 /**
  * @brief Add an item to the dynamic array.
  * @param array
  * @param value
  */
-void add_to_dynamic_array(DynamicArray *array, uint64_t value) {
+void add_to_dynamic_array(DynamicArray *array, Message message) {
     if (array->size == array->capacity) {
         resize_dynamic_array(array);
     }
-    array->data[array->size] = value;
+    array->data[array->size] = message; // Assign a Message object
     array->size++;
 }
 
@@ -56,7 +58,7 @@ void add_to_dynamic_array(DynamicArray *array, uint64_t value) {
 void print_dynamic_array(DynamicArray *array) {
     printf("Dynamic array: ");
     for (size_t i = 0; i < array->size; i++) {
-        printf("%" PRIu64 " ", array->data[i]);
+        printf("%" PRIu64 " " "%s", array->data[i].id, array->data[i].content);
     }
     printf("\n");
 }
@@ -73,9 +75,9 @@ uint64_t generate_unique_msg_id() {
  * @brief Add a message ID to the array of IDs awaiting ACK.
  * @param msg_id
  */
-void add_msg_id_for_ack(uint64_t msg_id) {
+void add_msg_id_for_ack(Message message) {
     pthread_mutex_lock(&msg_ids_mutex);
-    add_to_dynamic_array(&awaiting_ack_msg_ids, msg_id);
+    add_to_dynamic_array(&awaiting_ack_msg_ids, message);
     pthread_mutex_unlock(&msg_ids_mutex);
 }
 
@@ -87,7 +89,7 @@ void add_msg_id_for_ack(uint64_t msg_id) {
 void remove_msg_id(DynamicArray *array, uint64_t msg_id) {
     pthread_mutex_lock(&msg_ids_mutex);
     for (size_t i = 0; i < array->size; i++) {
-        if (array->data[i] == msg_id) {
+        if (array->data[i].id == msg_id) {
             for (size_t j = i; j < array->size - 1; j++) {
                 array->data[j] = array->data[j + 1];
             }
@@ -102,6 +104,7 @@ void remove_msg_id(DynamicArray *array, uint64_t msg_id) {
  * @brief Free the dynamic array.
  * @param array
  */
+
 void release_dynamic_array(DynamicArray *array) {
     free(array->data);
     array->data = NULL;
