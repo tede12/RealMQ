@@ -22,6 +22,8 @@
 
 typedef struct timespec timespec;
 
+// Function to sleep for a random time between min_ms and max_ms
+void rand_sleep(int min_ms, int max_ms);
 
 // Function to get the current timestamp in seconds
 time_t get_timestamp();

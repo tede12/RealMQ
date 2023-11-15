@@ -76,6 +76,12 @@ int main(void) {
         } else if (strncmp(buffer, "HB", 2) == 0) {
             // UDP Packet Detection
             logger(LOG_LEVEL_INFO2, "Received HB signal");
+
+            char* count_messages = malloc(10);
+            sprintf(count_messages, "%d", count_msg);
+            zmq_send_group(radio, get_group(RESPONDER_GROUP), count_messages, 0);
+            free(count_messages);
+            logger(LOG_LEVEL_INFO2, "Sent count messages (%d messages)", count_msg);
             continue;
         }
 

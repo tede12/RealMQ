@@ -9,6 +9,7 @@
 #include "core/config.h"
 #include "string_manip.h"
 #include "qos/accrual_detector.h"
+#include "utils/time_utils.h"
 #include <ctype.h>
 
 void *g_shared_context;
@@ -112,6 +113,9 @@ void *client_thread(void *thread_id) {
         }
         count_msg++;
         free(msg_id);
+
+        // Random sleep from 0 to 200ms
+        rand_sleep(0, 50);
     }
 
     // Add count_msg to g_count_msg
