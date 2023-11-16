@@ -2,65 +2,44 @@
 #include <stdlib.h>
 #include "qos/dynamic_array.h"
 #include "qos/interpolation_search.h"
+#include <inttypes.h>
 
-#define MAX_CAPACITY 100000
+#define MAX_CAPACITY 100000     // KEEP THIS VALUE FOR TESTING (or some test would fail)
 
 // Create a new dynamic array
 DynamicArray g_array;
 
 
-void setUp(void) {}
-
-void tearDown(void) {}
-
-void test_marshalling_message(uint64_t msg_id, const char *expected_content) {
-    Message *msg = create_message(expected_content);
-    msg->id = msg_id;
-
-    // Marshal the message
-    const char *buffer = marshal_message(msg);
-    if (buffer == NULL) {
-        TEST_FAIL_MESSAGE("Marshalling failed");
-    }
-
-    // Unmarshal the message
-    Message *new_msg = unmarshal_message(buffer);
-    if (new_msg == NULL) {
-        TEST_FAIL_MESSAGE("Unmarshalling failed");
-    }
-
-    TEST_ASSERT_EQUAL_STRING(expected_content, new_msg->content);
-    TEST_ASSERT_EQUAL_UINT64(msg_id, new_msg->id);
-
-    // Free the resources
-    release_message(msg);
-    release_message(new_msg);
-    free((void *) buffer);
-
+void setUp(void) {
+    // Reset the atomic message ID for each test
+    atomic_msg_id = 0;
 }
 
-void test_marshalling_message_1_hello(void) {
-    test_marshalling_message(1, "Hello");
+void tearDown(void) {
+    release_dynamic_array(&g_array);
 }
 
-void test_marshalling_message_2000_world(void) {
-    test_marshalling_message(2000, "World");
-}
-
-void test_marshalling_message_99999_hello_world(void) {
-    test_marshalling_message(99999, "Hello World");
-}
-
-void populate_array(void) {
+void populate_array(size_t element_size) {
     // Populate the array with some values
-    init_dynamic_array(&g_array, MAX_CAPACITY);    // 100000
+    if (element_size == sizeof(Message)) {
+        init_dynamic_array(&g_array, MAX_CAPACITY, sizeof(Message));
+    } else if (element_size == sizeof(uint64_t)) {
+        init_dynamic_array(&g_array, MAX_CAPACITY, sizeof(uint64_t));
+    } else {
+        TEST_FAIL_MESSAGE("Unsupported element size");
+    }
 
     for (uint64_t i = 0; i < MAX_CAPACITY; i++) {
-        Message *msg = create_message("Hello world");
-        msg->id = i;
-        add_message_to_dynamic_array(&g_array, *msg);
 
-        release_message(msg);
+        if (element_size == sizeof(Message)) {
+            Message *msg = create_element("Hello world");
+            add_to_dynamic_array(&g_array, msg);
+            release_element(msg, sizeof(Message));
+        } else {
+            uint64_t *msg_id = create_element(NULL);
+            add_to_dynamic_array(&g_array, msg_id);
+            release_element(msg_id, sizeof(uint64_t));
+        }
     }
     // print_dynamic_array(&g_array);
 }
@@ -69,6 +48,19 @@ void test_if_msg_id_exist(long long msg_id, long long expected_index) {
     // If expected_index is -1, then the msg_id should not exist in the array
     long long index = interpolate_search(&g_array, msg_id);
 
+//    // ONLY FOR DEBUGGING
+//    char *element_type;
+//    if (g_array.element_size == sizeof(Message)) {
+//        element_type = "Message";
+//    } else if (g_array.element_size == sizeof(uint64_t)) {
+//        element_type = "uint64_t";
+//    } else {
+//        element_type = "Unknown";
+//    }
+//
+//    printf("Attempting test with Type: %s, ID: %lld, Expected: %lld, Actual: %lld\n",
+//           element_type, msg_id, expected_index, index);
+
     if (expected_index == -1) {
         TEST_ASSERT_EQUAL_INT(-1, index);
     } else {
@@ -76,39 +68,38 @@ void test_if_msg_id_exist(long long msg_id, long long expected_index) {
     }
 }
 
-void test_msg_id_0_exists(void) {
-    populate_array();
-    test_if_msg_id_exist(0, 0);
-    release_dynamic_array(&g_array);
+void test_msg_id_1_exists_(size_t element_size) {
+    populate_array(element_size);
+    test_if_msg_id_exist(1, 0);
 }
 
-void test_msg_id_1000_exists(void) {
-    populate_array();
-    test_if_msg_id_exist(1000, 1000);
-    release_dynamic_array(&g_array);
+void test_msg_id_1000_exists_(size_t element_size) {
+    populate_array(element_size);
+    test_if_msg_id_exist(1000, 999);
+
 }
 
-void test_msg_id_99999_exists(void) {
-    populate_array();
-    test_if_msg_id_exist(99999, 99999);
-    release_dynamic_array(&g_array);
+void test_msg_id_99999_exists_(size_t element_size) {
+    populate_array(element_size);
+    test_if_msg_id_exist(99999, 99998);
+
 }
 
-void test_msg_id_100000_does_not_exist(void) {
-    populate_array();
-    test_if_msg_id_exist(100000, -1);
-    release_dynamic_array(&g_array);
-}
-
-void test_msg_id_100001_does_not_exist(void) {
-    populate_array();
+void test_msg_id_100001_does_not_exist_(size_t element_size) {
+    populate_array(element_size);
     test_if_msg_id_exist(100001, -1);
-    release_dynamic_array(&g_array);
+
+}
+
+void test_msg_id_200000_does_not_exist_(size_t element_size) {
+    populate_array(element_size);
+    test_if_msg_id_exist(200000, -1);
+
 }
 
 
-void test_removing_ids(void) {
-    populate_array();
+void test_removing_ids_(size_t element_size) {
+    populate_array(element_size);
     // Remove randomly 100 IDs from the array and check if they exist
 
     // Create a list of 100 random IDs
@@ -119,7 +110,7 @@ void test_removing_ids(void) {
 
     // Remove the IDs from the array
     for (int i = 0; i < 100; i++) {
-        remove_message_by_id(&g_array, random_ids[i], true);
+        remove_element_by_id(&g_array, random_ids[i], true);
     }
 
     // Check the length of the array
@@ -137,24 +128,73 @@ void test_removing_ids(void) {
 
     TEST_ASSERT_FALSE(found);
 
-    release_dynamic_array(&g_array);
+
+}
+
+
+void test_msg_id_1_exists_message(void) {
+    test_msg_id_1_exists_(sizeof(Message));
+}
+
+void test_msg_id_1_exists_value(void) {
+    test_msg_id_1_exists_(sizeof(uint64_t));
+}
+
+void test_msg_id_1000_exists_message(void) {
+    test_msg_id_1000_exists_(sizeof(Message));
+}
+
+void test_msg_id_1000_exists_value(void) {
+    test_msg_id_1000_exists_(sizeof(uint64_t));
+}
+
+void test_msg_id_99999_exists_message(void) {
+    test_msg_id_99999_exists_(sizeof(Message));
+}
+
+void test_msg_id_99999_exists_value(void) {
+    test_msg_id_99999_exists_(sizeof(uint64_t));
+}
+
+void test_msg_id_100001_does_not_exist_message(void) {
+    test_msg_id_100001_does_not_exist_(sizeof(Message));
+}
+
+void test_msg_id_100001_does_not_exist_value(void) {
+    test_msg_id_100001_does_not_exist_(sizeof(uint64_t));
+}
+
+void test_msg_id_200000_does_not_exist_message(void) {
+    test_msg_id_200000_does_not_exist_(sizeof(Message));
+}
+
+void test_msg_id_200000_does_not_exist_value(void) {
+    test_msg_id_200000_does_not_exist_(sizeof(uint64_t));
+}
+
+void test_removing_ids_message(void) {
+    test_removing_ids_(sizeof(Message));
+}
+
+void test_removing_ids_value(void) {
+    test_removing_ids_(sizeof(uint64_t));
 }
 
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_msg_id_0_exists);
-    RUN_TEST(test_msg_id_1000_exists);
-    RUN_TEST(test_msg_id_99999_exists);
-    RUN_TEST(test_msg_id_100000_does_not_exist);
-    RUN_TEST(test_msg_id_100001_does_not_exist);
-
-    RUN_TEST(test_removing_ids);
-
-    RUN_TEST(test_marshalling_message_1_hello);
-    RUN_TEST(test_marshalling_message_2000_world);
-    RUN_TEST(test_marshalling_message_99999_hello_world);
-
+    RUN_TEST(test_msg_id_1_exists_message);
+    RUN_TEST(test_msg_id_1_exists_value);
+    RUN_TEST(test_msg_id_1000_exists_message);
+    RUN_TEST(test_msg_id_1000_exists_value);
+    RUN_TEST(test_msg_id_99999_exists_message);
+    RUN_TEST(test_msg_id_99999_exists_value);
+    RUN_TEST(test_msg_id_100001_does_not_exist_message);
+    RUN_TEST(test_msg_id_100001_does_not_exist_value);
+    RUN_TEST(test_msg_id_200000_does_not_exist_message);
+    RUN_TEST(test_msg_id_200000_does_not_exist_value);
+    RUN_TEST(test_removing_ids_message);
+    RUN_TEST(test_removing_ids_value);
     // More RUN_TEST() calls...
     return UNITY_END();
 }

@@ -152,6 +152,7 @@ add_unity_test(test_process_missed_message_ids tests/test_process_missed_message
 add_unity_test(test_fs_utils tests/test_fs_utils.c)
 add_unity_test(test_config tests/test_config.c)
 add_unity_test(test_dynamic_array tests/test_dynamic_array.c)
+add_unity_test(test_marshalling tests/test_marshalling.c)
 # ----------------------------------------------------------------------------------------
 
 
