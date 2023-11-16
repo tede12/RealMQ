@@ -17,12 +17,18 @@ void setUp(void) {
     }
 
     // This is run before EACH test
-    date_time = malloc(20 * sizeof(char));
-    date_time = "01_01_2021_00_00_00";
+    date_time = strdup("01_01_2021_00_00_00");
 
-    // You might need to set up `config` here or mock it if it's complex
-    config.stats_folder_path = "tmp"; // Example setup
-    config.protocol = "tcp";
+    // Example setup with stats_folder_path = "tmp" and protocol = "tcp"
+    if (config.stats_folder_path != NULL) {
+        free(config.stats_folder_path);  // Free existing memory to avoid memory leak
+    }
+    config.stats_folder_path = strdup("tmp");  // Duplicate the string literal
+
+    if (config.protocol != NULL) {
+        free(config.protocol);  // Free existing memory to avoid memory leak
+    }
+    config.protocol = strdup("tcp");  // Duplicate the string literal
     config.use_json = 0;
 }
 
@@ -30,9 +36,11 @@ void tearDown(void) {
     // This is run after EACH test
     // Clean up any allocated memory, temporary files, or directories here
     if (date_time) {
+        free(date_time);
         date_time = NULL;
     }
     rmdir(config.stats_folder_path); // Removing temporary directory
+    release_config(); // Release the config
 }
 
 

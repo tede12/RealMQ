@@ -36,6 +36,9 @@ void save_stats_to_file(json_object **json_messages_ptr) {
     // Extract the folder path
     char *folder = strdup(fullPath); // Duplicate fullPath because dirname can modify the input argument
     char *dir = dirname(folder);
+
+    free(folder); // Free the memory allocated by strdup
+
     create_if_not_exist_folder(dir);
 
     logger(LOG_LEVEL_DEBUG, "Saving statistics to file: %s", fullPath);

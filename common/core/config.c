@@ -158,12 +158,10 @@ void assign_key_value(char *latest_section, char *key, char *value) {
     // Remember to free Integer values
     if (strcmp(latest_section, "general") == 0) {
         if (strcmp(key, "main_address") == 0) {
-            config.main_address = malloc(strlen(value) + 1);
-            strcpy(config.main_address, value);
+            config.main_address = strdup(value);
             return;
         } else if (strcmp(key, "responder_address") == 0) {
-            config.responder_address = malloc(strlen(value) + 1);
-            strcpy(config.responder_address, value);
+            config.responder_address = strdup(value);
             return;
         } else if (strcmp(key, "num_threads") == 0) {
             config.num_threads = convert_string_to_int(value);
@@ -178,8 +176,7 @@ void assign_key_value(char *latest_section, char *key, char *value) {
             config.save_interval_seconds = convert_string_to_int(value);
             return;
         } else if (strcmp(key, "stats_folder_path") == 0) {
-            config.stats_folder_path = malloc(strlen(value) + 1);
-            strcpy(config.stats_folder_path, value);
+            config.stats_folder_path = strdup(value);
             return;
         } else if (strcmp(key, "use_msg_per_minute") == 0) {
             config.use_msg_per_minute = strcmp(value, "true") == 0;
@@ -191,8 +188,7 @@ void assign_key_value(char *latest_section, char *key, char *value) {
             config.message_size = convert_string_to_int(value);
             return;
         } else if (strcmp(key, "protocol") == 0) {
-            config.protocol = malloc(strlen(value) + 1);
-            strcpy(config.protocol, value);
+            config.protocol = strdup(value);
             return;
         } else if (strcmp(key, "signal_msg_timeout") == 0) {
             config.signal_msg_timeout = convert_string_to_int(value);
@@ -312,9 +308,9 @@ void release_config() {
             (void **) &config.main_address,
             (void **) &config.responder_address,
             (void **) &config.stats_folder_path,
+            (void **) &config.protocol,
             (void **) &config.client_action->name,
             (void **) &config.server_action->name,
-            (void **) &config.protocol,
             (void **) &config.client_action,
             (void **) &config.server_action,
             NULL  // Sentinel value to mark the end of the array.

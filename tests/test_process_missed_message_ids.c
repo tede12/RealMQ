@@ -53,6 +53,7 @@ void test_process_missed_message_ids(void) {
         free(missed_ids[i]);
     }
     free(missed_ids);
+    free(tmp);
 }
 
 // The main function for running the tests
