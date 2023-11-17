@@ -77,7 +77,9 @@ char *random_string(unsigned int string_size) {
         } while (
             // regenerate if the character is a double quote or a backslash or slash that depends on the
             // escape character (and could break the size of the message)
-                random_string[i] == 0x22 || random_string[i] == 0x5C || random_string[i] == 0x2F);
+            // (added also bar/pipe to avoid problems with marshalling and unmarshalling)
+                random_string[i] == 0x22 || random_string[i] == 0x5C || random_string[i] == 0x2F ||
+                random_string[i] == 0x7C);
     }
     random_string[string_size] = '\0'; // Null terminator
     return random_string;

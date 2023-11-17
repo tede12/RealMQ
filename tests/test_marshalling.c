@@ -37,6 +37,9 @@ void test_uint64_t_array_marshalling(void) {
     // Check if unmarshalling was successful
     TEST_ASSERT_NOT_NULL_MESSAGE(unmarshalled_array, "Unmarshalling returned NULL");
 
+    // New array should be pointing to a different memory location than the original array
+    TEST_ASSERT_NOT_EQUAL(&g_array, unmarshalled_array);
+
     // Assert that the unmarshalled data matches the original data
     for (size_t i = 0; i < unmarshalled_array->size; ++i) {
 
@@ -72,6 +75,9 @@ void test_marshalling_message(uint64_t msg_id, const char *expected_content) {
         TEST_FAIL_MESSAGE("Unmarshalling failed");
     }
 
+    // New message should be pointing to a different memory location than the original message
+    TEST_ASSERT_NOT_EQUAL(msg, new_msg);
+
     TEST_ASSERT_EQUAL_STRING(expected_content, new_msg->content);
     TEST_ASSERT_EQUAL_UINT64(msg_id, new_msg->id);
 
@@ -98,10 +104,10 @@ void test_marshalling_message_99999_hello_world(void) {
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_marshalling_message_1_hello);
-    RUN_TEST(test_marshalling_message_2000_world);
-    RUN_TEST(test_marshalling_message_99999_hello_world);
-    RUN_TEST(test_uint64_t_array_marshalling);
+    RUN_TEST(test_marshalling_message_1_hello);             // Message marshalling
+    RUN_TEST(test_marshalling_message_2000_world);          // Message marshalling
+    RUN_TEST(test_marshalling_message_99999_hello_world);   // Message marshalling
+    RUN_TEST(test_uint64_t_array_marshalling);              // uint64_t array marshalling
 
     // More RUN_TEST() calls...
     return UNITY_END();

@@ -239,30 +239,35 @@ void release_dynamic_array(DynamicArray *array) {
     array->element_size = 0;
 }
 
+// ======================================= Marshalling and Unmarshalling =============================================//
+/*
+ * These functions are used to marshal and unmarshal messages struct and uint64_t arrays. Right now, they are not
+ * efficient in terms of speed and memory usage, since they use snprintf and strtok_r to serialize and deserialize.
+ * Given that they are used for testing purposes, this is not a big issue. However, if we want to use them in the
+ * future, we should use a more efficient serialization method that can use Protobuf or Flatbuffers.
+ */
+
 
 /**
  * @brief Marshal a message into a buffer.
  * @param msg The message to marshal
  */
 const char *marshal_message(const Message *msg) {
-    // Calculate buffer size: sizeof(uint64_t) for id + string length + 1 for null terminator
-    size_t buffer_size = sizeof(msg->id) + strlen(msg->content) + 1;
-
-    // Allocate buffer
-    char *buffer = malloc(buffer_size);
-    if (buffer == NULL) {
-        return NULL; // memory allocation failed
+    if (msg == NULL) {
+        return NULL;
     }
 
-    // Copy ID (consider endianness)
-    uint64_t net_id = htonll(msg->id); // Convert to network byte order
-    memcpy(buffer, &net_id, sizeof(net_id));
+    // Estimate buffer size needed
+    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) + 1;
+    char *buffer = malloc(buffer_size);
+    if (buffer == NULL) {
+        return NULL;
+    }
 
-    // Copy content
-    strcpy(buffer + sizeof(net_id), msg->content);
-
-    return buffer; // return the allocated buffer
+    snprintf(buffer, buffer_size, "%" PRIu64 "|%s", msg->id, msg->content);
+    return buffer;
 }
+
 
 /**
  * @brief Unmarshal a message from a buffer.
@@ -270,85 +275,92 @@ const char *marshal_message(const Message *msg) {
  * @return
  */
 Message *unmarshal_message(const char *buffer) {
-    // Allocate space for Message
+    if (buffer == NULL) {
+        return NULL;
+    }
+
     Message *msg = malloc(sizeof(Message));
     if (msg == NULL) {
-        return NULL; // memory allocation failed
+        return NULL;
     }
 
-    // Extract ID (consider endianness)
-    uint64_t net_id;
-    memcpy(&net_id, buffer, sizeof(net_id));
-    msg->id = ntohll(net_id); // Convert from network byte order
-
-    size_t content_length = strlen(buffer + sizeof(net_id));
-    msg->content = malloc(content_length + 1);
-    if (msg->content == NULL) {
-        return NULL; // memory allocation failed
+    uint64_t id;
+    char *content = strdup(buffer);
+    char *separator = strchr(content, '|');
+    if (separator != NULL) {
+        *separator = '\0';
+        id = strtoull(content, NULL, 10);
+        msg->content = strdup(separator + 1);
+    } else {
+        id = strtoull(content, NULL, 10);
+        msg->content = NULL;
     }
+    free(content);
 
-    // Extract content
-    strncpy(msg->content, buffer + sizeof(net_id), content_length);
-    msg->content[content_length] = '\0'; // Ensure null termination
-
-    return msg; // return the allocated Message
+    msg->id = id;
+    return msg;
 }
 
+
+/**
+ * @brief Marshal a uint64_t array into a buffer.
+ * @param array
+ * @return
+ */
 char *marshal_uint64_array(DynamicArray *array) {
-    if (array == NULL || array->element_size != sizeof(uint64_t)) {
-        return NULL; // Invalid input
+    if (array == NULL || array->size == 0) {
+        return NULL;
     }
 
-    size_t total_size = sizeof(size_t) + array->size * sizeof(uint64_t); // size of array + data
-    char *buffer = malloc(total_size);
-    if (buffer == NULL) {
-        return NULL; // Memory allocation failed
-    }
-
-    size_t net_size = htonll(array->size); // Convert size to network byte order
-    memcpy(buffer, &net_size, sizeof(size_t));
-
-    // Store the data
+    // Calculate required buffer size
+    size_t buffer_size = 0;
     for (size_t i = 0; i < array->size; i++) {
-        uint64_t net_value = htonll(((uint64_t *)array->data)[i]);
-        memcpy(buffer + sizeof(size_t) + i * sizeof(uint64_t), &net_value, sizeof(uint64_t));
+        buffer_size += snprintf(NULL, 0, "%" PRIu64 "|", *(uint64_t *) array->data[i]) + 1;
     }
+
+    char *buffer = malloc(buffer_size);
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    char *ptr = buffer;
+    for (size_t i = 0; i < array->size; i++) {
+        ptr += sprintf(ptr, "%" PRIu64 "|", *(uint64_t *) array->data[i]);
+    }
+    *(ptr - 1) = '\0'; // Replace the last '|' with a null terminator
 
     return buffer;
 }
 
 
+/**
+ * @brief Unmarshal a uint64_t array from a buffer.
+ * @param buffer
+ * @return
+ */
 DynamicArray *unmarshal_uint64_array(const char *buffer) {
     if (buffer == NULL) {
         return NULL;
     }
 
-    size_t net_size;
-    memcpy(&net_size, buffer, sizeof(size_t));
-    size_t size = ntohll(net_size); // Convert from network byte order to host byte order
-
     DynamicArray *array = malloc(sizeof(DynamicArray));
     if (array == NULL) {
-        return NULL; // Memory allocation failed
+        return NULL;
     }
-    init_dynamic_array(array, size, sizeof(uint64_t));
+    init_dynamic_array(array, 10, sizeof(uint64_t));
 
-    // Copy the data
-    for (size_t i = 0; i < size; i++) {
-        uint64_t net_value;
-        memcpy(&net_value, buffer + sizeof(size_t) + i * sizeof(uint64_t), sizeof(uint64_t));
-        uint64_t value = ntohll(net_value); // Convert from network byte order to host byte order
+    char *token;
+    char *str = strdup(buffer);
+    char *rest = str;
 
-        // Directly store the value in the array
-        ((uint64_t *)array->data)[i] = value;
-        array->size++;
+    while ((token = strtok_r(rest, "|", &rest))) {
+        uint64_t value = strtoull(token, NULL, 10);
+        add_to_dynamic_array(array, &value);
     }
 
+    free(str);
     return array;
 }
-
-
-
 
 
 /*
