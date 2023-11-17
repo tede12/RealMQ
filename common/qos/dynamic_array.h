@@ -52,8 +52,11 @@ void print_dynamic_array(DynamicArray *array);
 // Generate a unique message ID
 uint64_t generate_unique_message_id();
 
+// Get an element by index
+void *get_element_by_index(DynamicArray *array, long long index);
+
 // Remove a message from the array
-void remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search);
+long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search);
 
 // Free a message
 void release_element(void *element, size_t element_size);

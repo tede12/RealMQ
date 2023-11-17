@@ -160,11 +160,28 @@ uint64_t generate_unique_message_id() {
 }
 
 /**
+ * @brief Get an element by its index. If negative, it will be counted from the end of the array.
+ * @return The element at the given index, or NULL if the index is out of bounds.
+ */
+void *get_element_by_index(DynamicArray *array, long long index) {
+    if (index < 0) {
+        index = (long long)array->size + index;
+    }
+
+    if (index < 0 || index >= array->size) {
+        return NULL;
+    }
+
+    return array->data[index];
+}
+
+
+/**
  * @brief Remove a message ID from the array of IDs awaiting ACK.
  * @param array
  * @param msg_id
  */
-void remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search) {
+long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search) {
     pthread_mutex_lock(&msg_ids_mutex);
     long long index = -1;
 
@@ -203,6 +220,7 @@ void remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpo
     }
 
     pthread_mutex_unlock(&msg_ids_mutex);
+    return index;
 }
 
 /**

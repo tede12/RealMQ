@@ -132,6 +132,57 @@ void test_removing_ids_(size_t element_size) {
 }
 
 
+void test_get_element_by_index(void) {
+    populate_array(sizeof(uint64_t));
+
+    // Index starts from 0, msg_id starts from 1
+    uint64_t *msg_id = get_element_by_index(&g_array, 0);
+
+    TEST_ASSERT_EQUAL_INT(1, *msg_id);
+
+    msg_id = get_element_by_index(&g_array, 999);
+    TEST_ASSERT_EQUAL_INT(1000, *msg_id);
+
+    msg_id = get_element_by_index(&g_array, 99998);
+    TEST_ASSERT_EQUAL_INT(99999, *msg_id);
+
+    msg_id = get_element_by_index(&g_array, 99999);
+    TEST_ASSERT_EQUAL_INT(100000, *msg_id);
+
+    // This should return NULL
+    msg_id = get_element_by_index(&g_array, 100000);
+    TEST_ASSERT_NULL(msg_id);
+
+    // Test negative index
+    msg_id = get_element_by_index(&g_array, -1);
+    TEST_ASSERT_EQUAL_INT(100000, *msg_id);
+
+    msg_id = get_element_by_index(&g_array, -2);
+    TEST_ASSERT_EQUAL_INT(99999, *msg_id);
+}
+
+void test_get_element_by_index_using_random(void) {
+    // Populate using random ids
+    uint64_t random_ids[100];
+    for (int i = 0; i < 100; i++) {
+        random_ids[i] = rand() % MAX_CAPACITY;
+    }
+
+    // Populate the array with some values
+    init_dynamic_array(&g_array, MAX_CAPACITY, sizeof(uint64_t));
+    for (uint64_t i = 0; i < 100; i++) {
+        uint64_t msg_id = random_ids[i];
+        add_to_dynamic_array(&g_array, &msg_id);
+    }
+
+    // Check if the values are correct
+    for (int i = 0; i < 100; i++) {
+        uint64_t *msg_id = get_element_by_index(&g_array, i);
+        TEST_ASSERT_EQUAL_INT(random_ids[i], *msg_id);
+    }
+}
+
+
 void test_msg_id_1_exists_message(void) {
     test_msg_id_1_exists_(sizeof(Message));
 }
@@ -183,6 +234,7 @@ void test_removing_ids_value(void) {
 
 int main(void) {
     UNITY_BEGIN();
+    // Tests for interpolation search
     RUN_TEST(test_msg_id_1_exists_message);
     RUN_TEST(test_msg_id_1_exists_value);
     RUN_TEST(test_msg_id_1000_exists_message);
@@ -193,8 +245,14 @@ int main(void) {
     RUN_TEST(test_msg_id_100001_does_not_exist_value);
     RUN_TEST(test_msg_id_200000_does_not_exist_message);
     RUN_TEST(test_msg_id_200000_does_not_exist_value);
+
+    // Tests for removing IDs
     RUN_TEST(test_removing_ids_message);
     RUN_TEST(test_removing_ids_value);
+
+    // Tests for get_element_by_index
+    RUN_TEST(test_get_element_by_index);
+    RUN_TEST(test_get_element_by_index_using_random);
     // More RUN_TEST() calls...
     return UNITY_END();
 }
