@@ -67,4 +67,10 @@ const char *marshal_message(const Message *msg);
 // Unmarshal a message from a buffer
 Message *unmarshal_message(const char *buffer);
 
+// Marshal an uint64_t array into a buffer
+char *marshal_uint64_array(DynamicArray *array);
+
+// Unmarshal an uint64_t array from a buffer
+DynamicArray *unmarshal_uint64_array(const char *buffer);
+
 #endif //DYNAMIC_ARRAY_H

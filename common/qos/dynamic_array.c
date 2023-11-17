@@ -211,7 +211,6 @@ void remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpo
  */
 void release_element(void *element, size_t element_size) {
     if (element_size == sizeof(Message)) {
-
         if (((Message *) element)->content != NULL) {
             free(((Message *) element)->content);
             ((Message *) element)->content = NULL;
@@ -231,14 +230,6 @@ void release_element(void *element, size_t element_size) {
  */
 void release_dynamic_array(DynamicArray *array) {
     for (size_t i = 0; i < array->size; i++) {
-//        if (array->element_size == sizeof(Message)) {
-//            free(array->data[i]); // Free the Message
-//        } else if (array->element_size == sizeof(uint64_t)) {
-//            free(array->data[i]); // Free the ID
-//        } else {
-//            logger(LOG_LEVEL_ERROR, "Unsupported element size for dynamic array");
-//            exit(EXIT_FAILURE);
-//        }
         release_element(array->data[i], array->element_size);
     }
     free(array->data); // Free the array of Messages
@@ -302,6 +293,62 @@ Message *unmarshal_message(const char *buffer) {
 
     return msg; // return the allocated Message
 }
+
+char *marshal_uint64_array(DynamicArray *array) {
+    if (array == NULL || array->element_size != sizeof(uint64_t)) {
+        return NULL; // Invalid input
+    }
+
+    size_t total_size = sizeof(size_t) + array->size * sizeof(uint64_t); // size of array + data
+    char *buffer = malloc(total_size);
+    if (buffer == NULL) {
+        return NULL; // Memory allocation failed
+    }
+
+    size_t net_size = htonll(array->size); // Convert size to network byte order
+    memcpy(buffer, &net_size, sizeof(size_t));
+
+    // Store the data
+    for (size_t i = 0; i < array->size; i++) {
+        uint64_t net_value = htonll(((uint64_t *)array->data)[i]);
+        memcpy(buffer + sizeof(size_t) + i * sizeof(uint64_t), &net_value, sizeof(uint64_t));
+    }
+
+    return buffer;
+}
+
+
+DynamicArray *unmarshal_uint64_array(const char *buffer) {
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    size_t net_size;
+    memcpy(&net_size, buffer, sizeof(size_t));
+    size_t size = ntohll(net_size); // Convert from network byte order to host byte order
+
+    DynamicArray *array = malloc(sizeof(DynamicArray));
+    if (array == NULL) {
+        return NULL; // Memory allocation failed
+    }
+    init_dynamic_array(array, size, sizeof(uint64_t));
+
+    // Copy the data
+    for (size_t i = 0; i < size; i++) {
+        uint64_t net_value;
+        memcpy(&net_value, buffer + sizeof(size_t) + i * sizeof(uint64_t), sizeof(uint64_t));
+        uint64_t value = ntohll(net_value); // Convert from network byte order to host byte order
+
+        // Directly store the value in the array
+        ((uint64_t *)array->data)[i] = value;
+        array->size++;
+    }
+
+    return array;
+}
+
+
+
 
 
 /*

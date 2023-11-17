@@ -1,7 +1,7 @@
 #include "unity.h"
 #include <stdlib.h>
 #include "qos/dynamic_array.h"
-
+#include <inttypes.h>
 
 // Create a new dynamic array
 DynamicArray g_array;
@@ -12,6 +12,49 @@ void setUp(void) {}
 void tearDown(void) {
     release_dynamic_array(&g_array);
 }
+
+void test_uint64_t_array_marshalling(void) {
+    // Initialize the dynamic array
+    init_dynamic_array(&g_array, 5, sizeof(uint64_t));
+
+    // Populate the array with some test data
+    for (uint64_t i = 0; i < g_array.capacity; ++i) {
+        uint64_t *msg_id = malloc(sizeof(uint64_t));
+        *msg_id = i;
+        add_to_dynamic_array(&g_array, msg_id);
+        free(msg_id); // Free after adding since add_to_dynamic_array makes a deep copy
+    }
+
+    // Marshal the array
+    char *marshalled_buffer = marshal_uint64_array(&g_array);
+
+    // Check if marshalling was successful
+    TEST_ASSERT_NOT_NULL_MESSAGE(marshalled_buffer, "Marshalling returned NULL");
+
+    // Unmarshal the data back into a dynamic array
+    DynamicArray *unmarshalled_array = unmarshal_uint64_array(marshalled_buffer);
+
+    // Check if unmarshalling was successful
+    TEST_ASSERT_NOT_NULL_MESSAGE(unmarshalled_array, "Unmarshalling returned NULL");
+
+    // Assert that the unmarshalled data matches the original data
+    for (size_t i = 0; i < unmarshalled_array->size; ++i) {
+
+        uint64_t *msg_id = (uint64_t *) unmarshalled_array->data[i];
+        uint64_t *msg_id2 = (uint64_t *) g_array.data[i];
+
+//        // ONLY FOR DEBUGGING
+//        printf("unmarshalled_array->data[%zu] = %" PRIu64 "\n", i, *msg_id);
+//        printf("g_array.data[%zu] = %" PRIu64 "\n", i, *msg_id2);
+
+        TEST_ASSERT_EQUAL_UINT64(*msg_id, *msg_id2);
+    }
+
+    // Free the resources
+    free(marshalled_buffer);
+    release_dynamic_array(unmarshalled_array);
+}
+
 
 void test_marshalling_message(uint64_t msg_id, const char *expected_content) {
     Message *msg = create_element(expected_content);
@@ -58,6 +101,7 @@ int main(void) {
     RUN_TEST(test_marshalling_message_1_hello);
     RUN_TEST(test_marshalling_message_2000_world);
     RUN_TEST(test_marshalling_message_99999_hello_world);
+    RUN_TEST(test_uint64_t_array_marshalling);
 
     // More RUN_TEST() calls...
     return UNITY_END();
