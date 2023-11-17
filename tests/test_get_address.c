@@ -46,6 +46,5 @@ int main(void) {
     RUN_TEST(test_function_get_valid_address);
     RUN_TEST(test_function_get_invalid_address_type);
     // other test cases here
-    release_config();
     return UNITY_END();
 }

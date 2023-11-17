@@ -15,7 +15,10 @@ pthread_mutex_t g_ip_address_mutex = PTHREAD_MUTEX_INITIALIZER;
  */
 char *get_address(AddressType address_type) {
     pthread_mutex_lock(&g_ip_address_mutex);
-    if (g_ip_address) free(g_ip_address);  // prevent memory leak if the function is called multiple times
+    if (g_ip_address != NULL) {
+        free(g_ip_address);
+        g_ip_address = NULL;
+    }  // prevent memory leak if the function is called multiple times
     g_ip_address = (char *) calloc(64, sizeof(char));
 
     // Ensure that the memory was allocated successfully
@@ -43,6 +46,7 @@ char *get_address(AddressType address_type) {
     if (written < 0 || written >= 64) {
         logger(LOG_LEVEL_ERROR, "Error or insufficient space while composing the full address.");
         free(g_ip_address);
+        g_ip_address = NULL;
         return NULL;
     }
 
@@ -325,7 +329,10 @@ void release_config() {
     }
 
     // Free the full address
-    if (g_ip_address) free(g_ip_address);
+    if (g_ip_address) {
+        free(g_ip_address);
+        g_ip_address = NULL;
+    }
 }
 
 // Return a string representation of the configuration.
