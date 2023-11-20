@@ -165,7 +165,7 @@ uint64_t generate_unique_message_id() {
  */
 void *get_element_by_index(DynamicArray *array, long long index) {
     if (index < 0) {
-        index = (long long)array->size + index;
+        index = (long long) array->size + index;
     }
 
     if (index < 0 || index >= array->size) {
@@ -221,6 +221,21 @@ long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_in
 
     pthread_mutex_unlock(&msg_ids_mutex);
     return index;
+}
+
+/**
+ * @brief Clean all elements from the array.
+ * @param array
+ * @return
+ */
+size_t clean_all_elements(DynamicArray *array) {
+    size_t count = 0;
+    for (size_t i = 0; i < array->size; i++) {
+        release_element(array->data[i], array->element_size);
+        count++;
+    }
+    array->size = 0;
+    return count;
 }
 
 /**

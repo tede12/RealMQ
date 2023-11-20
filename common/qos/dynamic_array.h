@@ -55,6 +55,9 @@ uint64_t generate_unique_message_id();
 // Get an element by index
 void *get_element_by_index(DynamicArray *array, long long index);
 
+// Clean all elements from the array
+size_t clean_all_elements(DynamicArray *array);
+
 // Remove a message from the array
 long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search);
 

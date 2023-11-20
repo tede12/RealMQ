@@ -13,7 +13,7 @@
 
 void update_phi_detector(size_t missed_count);
 
-void send_heartbeat(void *socket, const char *group, bool force_send);
+bool send_heartbeat(void *socket, const char *group, bool force_send);
 
 void try_reconnect(void *context, void **socket, const char *connection_string, int socket_type);
 
