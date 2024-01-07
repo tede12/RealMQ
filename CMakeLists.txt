@@ -62,6 +62,9 @@ set(
         common/qos/message_queue.c
         common/qos/interpolation_search.c
         common/qos/dynamic_array.c
+        common/qos/accrual_detector/heartbeat_history.c
+        common/qos/accrual_detector/phi_accrual_failure_detector.c
+        common/qos/accrual_detector/state.c
 
         # Utils
         common/utils/fs_utils.c

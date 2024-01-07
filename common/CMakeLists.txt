@@ -12,6 +12,9 @@ set(COMMON_SOURCE
         qos/message_queue.h qos/message_queue.c
         qos/interpolation_search.h qos/interpolation_search.c
         qos/dynamic_array.h qos/dynamic_array.c
+        qos/accrual_detector/heartbeat_history.c qos/accrual_detector/heartbeat_history.h
+        qos/accrual_detector/phi_accrual_failure_detector.c qos/accrual_detector/phi_accrual_failure_detector.h
+        qos/accrual_detector/state.c qos/accrual_detector/state.h
 
 
         # Utils
