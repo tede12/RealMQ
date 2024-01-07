@@ -49,6 +49,13 @@ void *test_calloc(size_t num, size_t size, const char *file, int line, const cha
 
 void test_free(void *ptr, const char *file, int line) {
 #undef free
+    if (ptr == NULL) {
+#ifdef DEBUG_MEMORY
+        printf("Attempt to free a NULL pointer (file: %s, line: %d)\n", file, line);
+#endif
+        return;
+    }
+
     MemoryBlock **current = &head;
     while (*current != NULL) {
 #ifdef DEBUG_MEMORY
@@ -57,13 +64,15 @@ void test_free(void *ptr, const char *file, int line) {
         if ((*current)->address == ptr) {
             MemoryBlock *temp = *current;
             *current = (*current)->next;
+            free(temp->address);
             free(temp);
-            break;
+            return;
         }
         current = &(*current)->next;
     }
-    free(ptr);
-    ptr = NULL;
+#ifdef DEBUG_MEMORY
+    printf("Attempt to free an untracked pointer: %p (file: %s, line: %d)\n", ptr, file, line);
+#endif
 #define free(ptr) test_free(ptr, __FILE__, __LINE__)
 }
 
