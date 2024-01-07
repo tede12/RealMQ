@@ -3,17 +3,23 @@
 #include <stdio.h>
 #include <unistd.h> // for sleep()
 #include <pthread.h>
-#include "core/zhelpers.h"
+#include <ctype.h>
+#include "string_manip.h"
 #include "utils/utils.h"
+#include "utils/time_utils.h"
+#include "core/zhelpers.h"
 #include "core/logger.h"
 #include "core/config.h"
-#include "string_manip.h"
+#include "qos/accrual_detector.h"
+#include "qos/dynamic_array.h"
 #include "utils/memory_leak_detector.h"
 
 void *g_shared_context;
 int g_count_msg = 0;
 // mutex for g_count_msg
 pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
+DynamicArray g_array;
+
 
 Logger client_logger;
 
@@ -21,18 +27,41 @@ void *responder_thread(void *arg) {
     void *socket = (void *) arg;
     while (!interrupted) {
         char buffer[1024];
-        int rc = zmq_recv(socket, buffer, 1023, 0);
-        if (rc == -1 && errno == EAGAIN) {
-            // Timeout occurred
+        if (zmq_receive(socket, buffer, 0) == -1) {
             continue;
         }
 
-        buffer[rc] = '\0'; // Null-terminate the string
+        // Retrieve all messages ids sent from the client to the server
+        DynamicArray *new_array = unmarshal_uint64_array(buffer);
+        if (new_array == NULL) {
+            continue;
+        }
+
+        // Get the last message id from the array data.
+        uint64_t *last_id = get_element_by_index(new_array, -1);
+        uint64_t *first_id = get_element_by_index(&g_array, 0);
 
         size_t missed_count = 0;
-        char **missed_ids = process_missed_message_ids(buffer, &missed_count);
-        logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
+        // todo: Fix it need to get from the new array not in the g_array
 
+        // Remove from the low index to the last index of the array messages, if they are missing, count them.
+        for (uint64_t i = *first_id; i <= *last_id; i++) {
+            if (remove_element_by_id(&g_array, i, true) == -1) {
+                logger(LOG_LEVEL_WARN, "Message with ID %lu is missing, with message: %s", i, g_array.data[i]);
+                // todo should be resent the message (here)
+                missed_count++;
+            }
+        }
+
+        // Release the resources
+        release_dynamic_array(new_array);
+        free(new_array);
+
+
+        update_phi_detector(missed_count);
+
+        if (missed_count > 0)
+            logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
     }
 
     logger(LOG_LEVEL_DEBUG, "Responder thread exiting");
@@ -40,7 +69,7 @@ void *responder_thread(void *arg) {
 }
 
 
-void *client_thread(void *thread_id) {
+void client_thread(void *thread_id) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
     int thread_num = *(int *) thread_id;
@@ -60,17 +89,18 @@ void *client_thread(void *thread_id) {
         rc = zmq_send_group(radio, "GRP", "START", 0);
         if (rc == -1) {
             printf("Error in sending message\n");
-            return NULL;
+            return;
         }
         logger(LOG_LEVEL_INFO, "Sent START message");
         sleep(2);
     }
 
-    char *msg_id;
-
     int count_msg = 0;
 
+    // Message Loop
     while (!interrupted) {
+
+        // Only used for STOPPING thread
         if (count_msg == config.num_messages) {
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
@@ -82,21 +112,41 @@ void *client_thread(void *thread_id) {
             break;
         }
 
-        // Create a message ID
-        msg_id = generate_uuid();
+        // ----------------------------------------- PACKET DETECTION --------------------------------------------------
+        // Send a heartbeat before starting to send messages
+        send_heartbeat(radio, get_group(MAIN_GROUP), false);
+        // -------------------------------------------------------------------------------------------------------------
 
-        rc = zmq_send_group(radio, "GRP", msg_id, 0);
+        // Create a message ID
+        Message *msg = create_element("Hello World!");
+        if (msg == NULL) {
+            continue;
+        }
+
+        add_to_dynamic_array(&g_array, msg);
+        const char *msg_buffer = marshal_message(msg);
+        if (msg_buffer == NULL) {
+            free((void *) msg_buffer);
+            continue;
+        }
+
+        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+        free((void *) msg_buffer);
+
         if (rc == -1) {
             printf("Error in sending message\n");
             break;
         }
-        logger(LOG_LEVEL_INFO2, "Sent message with ID: %s", msg_id);
+        logger(LOG_LEVEL_INFO2, "Sent message with ID: %lu", msg->id);
 
         if (count_msg % 100000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
         }
         count_msg++;
-        free(msg_id);
+        release_element(msg, sizeof(Message));
+
+        // Random sleep from 0 to 200ms
+        rand_sleep(0, 50);
     }
 
     // Add count_msg to g_count_msg
@@ -107,8 +157,6 @@ void *client_thread(void *thread_id) {
     // Release the resources
     zmq_close(radio);
     logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
-
-    return NULL;
 }
 
 int main(void) {
@@ -138,6 +186,9 @@ int main(void) {
     // Print configuration
     print_configuration();
 
+    // Initialize the dynamic array
+    init_dynamic_array(&g_array, 100000, sizeof(Message));
+
     void *dish = create_socket(
             g_shared_context,
             ZMQ_DISH,
@@ -154,7 +205,7 @@ int main(void) {
     int thread_ids[config.num_threads];
     for (int i = 0; i < config.num_threads; i++) {
         thread_ids[i] = i;
-        pthread_create(&clients[i], NULL, client_thread, &thread_ids[i]);
+        pthread_create(&clients[i], NULL, (void *) client_thread, &thread_ids[i]);
     }
     // Wait for client threads to finish
     for (int i = 0; i < config.num_threads; i++) {
@@ -171,6 +222,7 @@ int main(void) {
 
     logger(LOG_LEVEL_INFO, "Total messages sent: %d", g_count_msg);
     release_config();
+    release_dynamic_array(&g_array);
     logger(LOG_LEVEL_INFO, "Released configuration");
 
     check_for_leaks();  // Check for memory leaks

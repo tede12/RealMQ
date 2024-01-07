@@ -8,7 +8,7 @@ general:
   num_threads: 1
 
   # num_messages: total number of messages that will be sent by the client
-  num_messages: 1000000
+  num_messages: 1000
 
   # message_size: size of the message in bytes that will be sent by the client (random ascii, avoid caching)
   message_size: 1024

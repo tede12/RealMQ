@@ -13,6 +13,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+// Message structure
+typedef struct {
+    uint64_t id;
+    char *content;
+} Message;
+
+
 // Atomic for thread-safe unique message ID generation
 extern volatile uint64_t atomic_msg_id;
 
@@ -21,36 +28,55 @@ extern pthread_mutex_t msg_ids_mutex;
 
 // Dynamic array for storing message IDs awaiting ACK
 typedef struct {
-    uint64_t *data;
-    size_t capacity;
-    size_t size;
+    void **data;            // Void pointer to the data for genericity
+    size_t size;            // Number of elements in the array
+    size_t capacity;        // Total capacity of the array
+    size_t element_size;    // Size of each element in the array
 } DynamicArray;
 
-extern DynamicArray awaiting_ack_msg_ids;
-
 // Initialize dynamic array with a certain capacity
-void init_dynamic_array(DynamicArray *array, size_t initial_capacity);
+void init_dynamic_array(DynamicArray *array, size_t initial_capacity, size_t element_size);
 
 // Resize the dynamic array
 void resize_dynamic_array(DynamicArray *array);
 
 // Add an item to the dynamic array
-void add_to_dynamic_array(DynamicArray *array, uint64_t value);
+void add_to_dynamic_array(DynamicArray *array, void *element);
+
+// Create a new message
+void *create_element(const char *content);
 
 // Debugging function to print the dynamic array
 void print_dynamic_array(DynamicArray *array);
 
 // Generate a unique message ID
-uint64_t generate_unique_msg_id();
+uint64_t generate_unique_message_id();
 
-// Add a message ID to the array of IDs awaiting ACK
-void add_msg_id_for_ack(uint64_t msg_id);
+// Get an element by index
+void *get_element_by_index(DynamicArray *array, long long index);
 
-// Remove a message ID from the array of IDs awaiting ACK
-void remove_msg_id(DynamicArray *array, uint64_t msg_id);
+// Clean all elements from the array
+size_t clean_all_elements(DynamicArray *array);
+
+// Remove a message from the array
+long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search);
+
+// Free a message
+void release_element(void *element, size_t element_size);
 
 // Free the dynamic array
 void release_dynamic_array(DynamicArray *array);
 
+// Marshal a message into a buffer
+const char *marshal_message(const Message *msg);
+
+// Unmarshal a message from a buffer
+Message *unmarshal_message(const char *buffer);
+
+// Marshal an uint64_t array into a buffer
+char *marshal_uint64_array(DynamicArray *array);
+
+// Unmarshal an uint64_t array from a buffer
+DynamicArray *unmarshal_uint64_array(const char *buffer);
 
 #endif //DYNAMIC_ARRAY_H

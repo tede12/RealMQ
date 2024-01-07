@@ -12,11 +12,20 @@ void setUp(void) {
 
 void tearDown(void) {
     // clean stuff up here
+    release_config();
 }
 
 void test_function_get_valid_address(void) {
-    config.responder_address = "127.0.0.1:8000";
-    config.protocol = "tcp";
+    // Example setup with responder_address = "127.0.0.1:8000" and protocol = "tcp"
+    if (config.responder_address != NULL) {
+        free(config.responder_address);  // Free existing memory to avoid memory leak
+    }
+    config.responder_address = strdup("127.0.0.1:8000");  // Duplicate the string literal
+
+    if (config.protocol != NULL) {
+        free(config.protocol);  // Free existing memory to avoid memory leak
+    }
+    config.protocol = strdup("tcp");  // Duplicate the string literal
 
     char *address = get_address(RESPONDER_ADDRESS);
     TEST_ASSERT_NOT_NULL(address);
@@ -37,6 +46,5 @@ int main(void) {
     RUN_TEST(test_function_get_valid_address);
     RUN_TEST(test_function_get_invalid_address_type);
     // other test cases here
-    release_config();
     return UNITY_END();
 }
