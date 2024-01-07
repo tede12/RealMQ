@@ -16,19 +16,20 @@
  */
 // =====================================================================================================================
 
-
-#define PHI_THRESHOLD 1                    // Threshold of the phi value to consider a disconnection
-#define WINDOW_SIZE 10                      // Size of the window for the samples, used in the rolling mean and variance
-#define INITIAL_HEARTBEAT_INTERVAL 0.0000000001     // Initial heartbeat interval (in seconds)
-#define MAX_HEARTBEAT_INTERVAL 1            // Maximum heartbeat interval (in seconds)
-#define MIN_HEARTBEAT_INTERVAL 0.1          // Minimum heartbeat interval   (in seconds)
-#define INCREASE_FACTOR 0.1                 // Factor to increase the heartbeat interval when there is no message loss
+// Initial heartbeat interval in seconds (adjust as needed)
+#define PHI_THRESHOLD 4.0                 // Threshold of the phi value to consider a disconnection
+#define WINDOW_SIZE 10                  // Size of the window for the samples, used in the rolling mean and variance
+#define INITIAL_HEARTBEAT_INTERVAL 1.0  // Initial heartbeat interval (in seconds)
+#define MAX_HEARTBEAT_INTERVAL 1        // Maximum heartbeat interval (in seconds)
+#define MIN_HEARTBEAT_INTERVAL 0.1      // Minimum heartbeat interval (in seconds)
+#define INCREASE_FACTOR 0.1             // Factor to increase the heartbeat interval
+#define MAX_VARIANCE 1.0                // Maximum variance
 
 // Global variables to store the times of the last heartbeats
 time_t HEARTBEATS_WINDOW[WINDOW_SIZE];
 int last_heartbeat_index = 0;
 double g_mean = INITIAL_HEARTBEAT_INTERVAL;
-double g_variance = 0.0;
+double g_variance = 0.1; // Initial variance (adjust as needed)
 double lost_message_rate[WINDOW_SIZE]; // The rate of lost messages
 int lost_message_rate_index = 0;
 double consecutive_zeros_count = 0.0;
@@ -63,39 +64,35 @@ void update_phi_detector(size_t missed_count) {
         }
     }
     double average_lost_rate = total_lost / WINDOW_SIZE;
-    double average_time_diff = total_time_diff / (WINDOW_SIZE - 1);
+    g_mean = total_time_diff / (WINDOW_SIZE - 1);
 
     // Calculate the variance
     double variance_sum = 0.0;
     for (int i = 1; i < WINDOW_SIZE; i++) {
         double time_diff = difftime(HEARTBEATS_WINDOW[i], HEARTBEATS_WINDOW[i - 1]);
-        variance_sum += pow(time_diff - average_time_diff, 2);
+        variance_sum += pow(time_diff - g_mean, 2);
     }
     g_variance = variance_sum / (WINDOW_SIZE - 1);
 
+    // Boundary checks for variance
+    if (g_variance > MAX_VARIANCE) {
+        g_variance = MAX_VARIANCE;
+    }
+
     // Adjust the heartbeat interval based on the average lost rate and variance
     if (average_lost_rate > 0) {
-        // Decrease the interval due to message loss
         g_mean = fmax(MIN_HEARTBEAT_INTERVAL, g_mean * (1 - average_lost_rate) * (1 + sqrt(g_variance)));
-        // Reset the consecutive zero count
-        consecutive_zeros_count = 0.0;
     } else {
-        // Apply exponential decay to the consecutive zero count
-        consecutive_zeros_count = (consecutive_zeros_count * 0.9) + 1.0;
         // Increase the interval due to no message loss, moderating based on g_variance and decayed zero count
-        double increase_factor =
-                1.0 + (INCREASE_FACTOR * fmin(consecutive_zeros_count, 10)); // Caps the increase factor
+        double increase_factor = 1.0 + (INCREASE_FACTOR * fmin(consecutive_zeros_count, 10));
         g_mean = fmin(MAX_HEARTBEAT_INTERVAL, g_mean * increase_factor / (1 + sqrt(g_variance)));
     }
 }
 
 double p_later(double time_diff) {
-    double m, v, ret;
-
-    m = g_mean;
-    v = g_variance;
-    ret = 0.5 * erfc((time_diff - m) / v * M_SQRT2);
-
+    double m = g_mean;
+    double v = g_variance;
+    double ret = 0.5 * erfc((time_diff - m) / v * M_SQRT2);
     return ret;
 }
 
@@ -111,9 +108,15 @@ double calculate_phi(time_t current_time) {
     double time_diff = difftime(current_time, HEARTBEATS_WINDOW[last_heartbeat_index]);
     double probability_later = p_later(time_diff);
 
-    double phi = -log10(probability_later);
+    if (probability_later <= 0.0000001) {
+        probability_later = 0.0000001;
+    }
 
-    logger(LOG_LEVEL_INFO, "Phi: %8.4lf, Plater: %8.4lf, Mean: %8.4lf, Variance: %8.4lf", phi, probability_later, g_mean, g_variance);
+    double phi = -log10(probability_later);
+    logger(
+            LOG_LEVEL_INFO, "Phi: %8.4lf, Plater: %8.4lf, Mean: %8.4lf, Variance: %8.4lf",
+            phi, probability_later, g_mean, g_variance
+    );
     return phi;
 }
 
@@ -151,10 +154,16 @@ void update_phi_accrual_failure_detector(time_t new_time) {
 bool send_heartbeat(void *socket, const char *group, bool force_send) {
     time_t current_time = time(NULL);
 
+    if (force_send) {
+        logger(LOG_LEVEL_DEBUG,
+           "DEFAULTS, PHI_THRESHOLD: %8.4lf, WINDOW_SIZE: %d, INCREASE_FACTOR: %8.4lf",
+           PHI_THRESHOLD, WINDOW_SIZE, INCREASE_FACTOR);
+    }
+
     if (HEARTBEATS_WINDOW[last_heartbeat_index] == 0) {
         // If it's the first heartbeat, set the time of the last heartbeat to the current time
         HEARTBEATS_WINDOW[last_heartbeat_index] = current_time;
-        return 0;
+        return false;
     }
 
     // Calculate the phi value based on the current time

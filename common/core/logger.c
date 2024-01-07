@@ -115,10 +115,12 @@ void log_internal(int level, const char *format, va_list args) {
     }
 
 #ifdef DEBUG
-    // Print to file
-    fprintf(log_file, "%s\n", final_msg);
-    // flush the file
-    fflush(log_file);
+    if (log_file != NULL) {
+        // Print to file
+        fprintf(log_file, "%s\n", final_msg);
+        // flush the file
+        fflush(log_file);
+    }
 #endif
 
     free(final_msg);
@@ -142,8 +144,12 @@ void Logger_init(const char *name, logConfig *config, loggerType *my_logger) {
     openlog(name, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 
 #ifdef DEBUG
-// Open file to log in append
-    log_file = fopen("../logger.log", "wa");
+    // Open file to log in append
+    if (config->log_path != NULL) {
+        log_file = fopen(config->log_path, "wa");
+    } else {
+        log_file = fopen("../logger.log", "wa");
+    }
 #endif
 
 }
@@ -157,6 +163,8 @@ void release_logger() {
 
     closelog();
 }
+
+
 
 /**
     * Example usage:

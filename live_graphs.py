@@ -13,6 +13,7 @@ class DataPlotter:
         self.logger_file = 'logger.log'
 
         # Initialize patterns
+        self.clean_pattern = re.compile(r"CLEAN DATA")
         self.data_pattern = re.compile(
             r"Phi:\s*([\d.]+), Plater:\s*([\d.]+), Mean:\s*([\d.]+), Variance:\s*([\d.]+)"
         )
@@ -168,7 +169,7 @@ class DataPlotter:
         last_plater = self.data['Plater'][-1] if self.data['Plater'] else 'N/A'
         readable_file_size = self.bytes_to_readable(file_size)
 
-        text_message_since_last_heartbeat = ", ".join(map(str, self.messages_between_heartbeats))
+        text_message_since_last_heartbeat = ", ".join(map(str, self.messages_between_heartbeats[-15:]))
 
         separator = "-" * 140 + "\n"
         info_text = (
@@ -180,7 +181,7 @@ class DataPlotter:
             f"    Plater: {last_plater}    |"
             f"    Mean: {last_mean}    |"
             f"    Variance: {last_variance}\n"
-            f"Missed count: [{', '.join(map(str, self.missed_count_list))}]\n"
+            f"Missed count: [{', '.join(map(str, self.missed_count_list[-15:]))}]\n"
             f"{separator}"
             f"Defaults: PHI_THRESHOLD: {self.defaults['PHI_THRESHOLD']}, WINDOW_SIZE: {self.defaults['WINDOW_SIZE']}, "
             f"INCREASE_FACTOR: {self.defaults['INCREASE_FACTOR']}"
@@ -194,6 +195,12 @@ class DataPlotter:
             line = file.readline()
 
             while line:
+                if self.clean_pattern.search(line):
+                    self.clean_logger(None)
+                    print("Cleaned the logger file")
+                    line = file.readline()
+                    continue
+
                 match = self.data_pattern.search(line)
                 if match:
                     phi, plater, mean, variance = map(float, match.groups())
@@ -213,9 +220,11 @@ class DataPlotter:
                     self.messages_between_heartbeats.append(self.messages_since_last_heartbeat)
 
                 if self.missed_pattern.search(line):
-                    vline = self.ax.axvline(len(self.data['Phi']) - 1, color='grey', linestyle='dotted')
-                    self.vertical_lines['Missed'].append(vline)
+                    # self.vertical_lines['Missed'].append(vline)
+                    # vline = self.ax.axvline(len(self.data['Phi']) - 1, color='grey', linestyle='dotted')
+                    # hide missed count (uncomment this line to show missed count)
                     self.missed_count_list.append(int(self.missed_pattern.search(line).group(1)))
+                    pass
 
                 if self.defaults_pattern.search(line):
                     self.defaults['PHI_THRESHOLD'] = float(self.defaults_pattern.search(line).group(1))
@@ -262,15 +271,18 @@ class DataPlotter:
         for line in self.lines.values():
             line.set_data([], [])
 
-        # Clear existing vertical lines
+        # Clear existing vertical lines for Heartbeats
         for line in self.vertical_lines['Heartbeat']:
             line.remove()
+        self.vertical_lines['Heartbeat'].clear()
 
+        # Clear existing vertical lines for Missed
         for line in self.vertical_lines['Missed']:
             line.remove()
+        self.vertical_lines['Missed'].clear()
 
-        # Clear messages between heartbeats
-        self.messages_between_heartbeats.clear()
+        self.missed_count_list = []
+        self.messages_between_heartbeats = []
         self.messages_since_last_heartbeat = 0
 
         # Update the plot and information textbox

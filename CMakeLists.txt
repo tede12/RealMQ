@@ -153,7 +153,6 @@ add_unity_test(test_fs_utils tests/test_fs_utils.c)
 add_unity_test(test_config tests/test_config.c)
 add_unity_test(test_dynamic_array tests/test_dynamic_array.c)
 add_unity_test(test_marshalling tests/test_marshalling.c)
-
 add_executable(test_accrual tests/test_accrual_detector.c ${SOURCE_FILES})
 target_link_libraries_realmq(test_accrual)
 # ----------------------------------------------------------------------------------------
