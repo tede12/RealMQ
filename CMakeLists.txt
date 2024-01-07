@@ -101,10 +101,11 @@ target_link_libraries_realmq(realmq_server)
 # ------------------------------- Test executables ---------------------------------------
 add_executable(client tests/draft_test/client.c ${SOURCE_FILES})
 add_executable(server tests/draft_test/server.c ${SOURCE_FILES})
+add_executable(simulator tests/draft_test/simulate_accrual_detector.c ${SOURCE_FILES})
 
 target_link_libraries_realmq(client)
 target_link_libraries_realmq(server)
-
+target_link_libraries_realmq(simulator)
 # ----------------------------------------------------------------------------------------
 
 # ------------------------------- Unit Testing ---------------------------------------
