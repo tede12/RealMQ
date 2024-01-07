@@ -19,15 +19,32 @@
 #include <pthread.h>
 #include <assert.h>
 
+// Global variables
+extern long long fake_time;  // For testing purposes
+
+//#define DEBUG_TIMES
+#ifdef DEBUG_TIMES
+extern long long time_default;
+static double time_list[] = {100.0, 200.0, 300.0};
+extern int time_count;
+#endif
 
 typedef struct timespec timespec;
 
+// Function to sleep for a random time between min_ms and max_ms
+void rand_sleep(int min_ms, int max_ms);
 
 // Function to get the current timestamp in seconds
 time_t get_timestamp();
 
 // Function to get the current date and time as a string
 char *get_current_date_time();
+
+// Function to get the current time in microseconds
+long long get_current_time_microseconds();
+
+// Function to get the current timestamp in milliseconds
+long long get_current_timestamp();
 
 // Function to get the current time in milliseconds
 long long get_current_time_millis();

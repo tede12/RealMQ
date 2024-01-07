@@ -1,6 +1,24 @@
 #include "time_utils.h"
 
 /**
+ * @brief Sleep for a random time between min_ms and max_ms
+ *
+ * @param min_ms
+ * @param max_ms
+ */
+void rand_sleep(int min_ms, int max_ms) {
+    // Init random seed
+    srand(time(NULL));
+
+    int range = max_ms - min_ms + 1;
+    // Generate random number between min_ms and max_ms
+    int sleep_time = min_ms + (rand() % range);
+
+    usleep(sleep_time * 1000);
+}
+
+
+/**
  * @brief Get the current timestamp (precision: seconds)
  *
  * @return time_t
@@ -28,15 +46,60 @@ char *get_current_date_time() {
 }
 
 
+long long fake_time = 0;    // Used for testing
+
+#ifdef DEBUG_TIMES
+long long time_default = 1000000000000;
+int time_count = 0;
+#endif
+
+/**
+ * @brief Get the current timestamp (precision: microseconds)
+ *
+ * @return long long
+ */
+long long get_current_time_microseconds() {
+#ifdef DEBUG_TIMES
+    int index = time_count % 3; // Equivalent to time_count % len(time_list)
+    time_default += (int) time_list[index];
+    time_count++;
+    return time_default;
+#else
+    if (fake_time != 0) {
+//        printf("Returning fake time: %lld\n", fake_time);
+        return fake_time;
+    }
+
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    long long final_time = (long long) ts.tv_sec * 1000000 + (long long) ts.tv_nsec / 1000; // microseconds
+//    printf("Returning real time: %lld\n", final_time);
+    return final_time;
+#endif
+}
+
+/**
+ * @brief Get the current timestamp (precision: milliseconds)
+ * @return long long
+ */
+long long get_current_timestamp() {
+    long long final_time;
+    final_time = get_current_time_microseconds() / 1000;
+    return final_time;
+}
+
 /**
  * @brief Get the current timestamp (precision: milliseconds)
  *
  * @return long long
  */
 long long get_current_time_millis() {
+    long long final_time;
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long long) (ts.tv_sec) * 1000 + (long long) (ts.tv_nsec) / 1000000;
+    final_time = (long long) (ts.tv_sec) * 1000 + (long long) (ts.tv_nsec) / 1000000;
+    printf("Returning real time: %lld\n", final_time);
+    return final_time;
 }
 
 /**

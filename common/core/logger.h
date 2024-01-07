@@ -39,6 +39,7 @@ typedef struct {
     int show_logger_name; // If true, show logger name
     int log_to_console;   // If true, log to console otherwise log to syslog
     LogLevel log_level;   // Permit only messages with level <= log_level
+    char *log_path;       // If not NULL, log to file
 } logConfig;
 
 typedef struct Logger {

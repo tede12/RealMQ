@@ -1,3 +1,9 @@
+//  =====================================================================
+//  memory_leak_detector.h
+//
+//  Memory leak detector functions
+//  =====================================================================
+
 #ifndef ACCRUAL_DETECTOR_ALGORITHM_MEMORY_LEAK_DETECTOR_H
 #define ACCRUAL_DETECTOR_ALGORITHM_MEMORY_LEAK_DETECTOR_H
 
