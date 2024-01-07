@@ -11,7 +11,7 @@
 #include "core/logger.h"
 #include "utils/time_utils.h"
 #include "utils/fs_utils.h"
-
+#include "utils/memory_leak_detector.h"
 
 // ---------------------------------------- Global configuration -------------------------------------------------------
 Logger server_logger;
@@ -214,6 +214,8 @@ int main() {
     // Release the configuration
     release_config();
     release_logger();
+
+    check_for_leaks();  // Check for memory leaks
 
     return 0;
 }

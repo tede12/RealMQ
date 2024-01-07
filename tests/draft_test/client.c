@@ -8,6 +8,7 @@
 #include "core/logger.h"
 #include "core/config.h"
 #include "string_manip.h"
+#include "utils/memory_leak_detector.h"
 
 void *g_shared_context;
 int g_count_msg = 0;
@@ -171,6 +172,8 @@ int main(void) {
     logger(LOG_LEVEL_INFO, "Total messages sent: %d", g_count_msg);
     release_config();
     logger(LOG_LEVEL_INFO, "Released configuration");
+
+    check_for_leaks();  // Check for memory leaks
 
     return 0;
 }

@@ -18,8 +18,9 @@ set(COMMON_SOURCE
         time_utils.h time_utils.h
         utils.h utils.c
         fs_utils.h fs_utils.c
+        memory_leak_detector.h memory_leak_detector.c
 
-        )
+)
 
 # Create static library from sources
 add_library(common STATIC ${COMMON_SOURCE})
