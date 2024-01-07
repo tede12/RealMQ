@@ -8,6 +8,7 @@
 #include "core/config.h"
 #include "qos/accrual_detector.h"
 #include "core/logger.h"
+#include "utils/memory_leak_detector.h"
 
 Logger server_logger;
 
@@ -96,6 +97,8 @@ int main(void) {
     zmq_ctx_destroy(context2);
 
     release_config();
+
+    check_for_leaks(); // Check for memory leaks
 
     return 0;
 }

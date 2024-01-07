@@ -68,6 +68,7 @@ set(
         common/utils/utils.c
         common/utils/time_utils.c
         common/utils/utils.c
+        common/utils/memory_leak_detector.c
 )
 
 

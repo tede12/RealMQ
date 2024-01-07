@@ -11,6 +11,7 @@
 #include "qos/accrual_detector.h"
 #include "utils/time_utils.h"
 #include "string_manip.h"
+#include "utils/memory_leak_detector.h"
 
 #ifdef REALMQ_VERSION
 
@@ -311,6 +312,8 @@ int main() {
     // Release the configuration
     release_config();
     release_logger();
+
+    check_for_leaks();  // Check for memory leaks
 
     return 0;
 }
