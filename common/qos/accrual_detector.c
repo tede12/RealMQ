@@ -24,8 +24,8 @@
 // Global variables to store the times of the last heartbeats
 time_t last_heartbeat_times[WINDOW_SIZE];
 int last_heartbeat_index = 0;
-double mean = HEARTBEAT_INTERVAL;
-double variance = 0.0;
+double mean_g = HEARTBEAT_INTERVAL;
+double variance_g = 0.0;
 
 bool log_heartbeat = false;
 
@@ -39,7 +39,7 @@ bool log_heartbeat = false;
  */
 double calculate_phi(time_t current_time) {
     double time_diff = difftime(current_time, last_heartbeat_times[last_heartbeat_index]);
-    double phi = -log10(exp(-time_diff / mean));
+    double phi = -log10(exp(-time_diff / mean_g));
     return phi;
 }
 
@@ -56,12 +56,12 @@ void update_phi_accrual_failure_detector(time_t new_time) {
     // Update the rolling mean and variance for the inter-arrival times
     // The formula used here for the mean is a simplification of the Welford's method for calculating variance
     // mean(new) = mean(old) + (new_value - mean(old)) / sample_size
-    double old_mean = mean;
-    mean = mean + (time_diff - mean) / WINDOW_SIZE;
+    double old_mean = mean_g;
+    mean_g = mean_g + (time_diff - mean_g) / WINDOW_SIZE;
 
     // The formula for variance uses Welford's online algorithm
     // variance(new) = variance(old) + (new_value - mean(old)) * (new_value - mean(new))
-    variance = variance + (time_diff - old_mean) * (time_diff - mean);
+    variance_g = variance_g + (time_diff - old_mean) * (time_diff - mean_g);
 
     // Update the circular buffer index and value
     last_heartbeat_index = (last_heartbeat_index + 1) % WINDOW_SIZE;

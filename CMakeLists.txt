@@ -147,8 +147,8 @@ function(add_unity_test test_name test_source)
     add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
-# Test cases
 
+# Test cases
 add_unity_test(test_split_string tests/test_split_string.c)
 add_unity_test(test_get_address tests/test_get_address.c)
 add_unity_test(test_convert_string_to_int tests/test_convert_string_to_int.c)
@@ -156,6 +156,9 @@ add_unity_test(test_process_missed_message_ids tests/test_process_missed_message
 add_unity_test(test_fs_utils tests/test_fs_utils.c)
 add_unity_test(test_config tests/test_config.c)
 add_unity_test(test_dynamic_array tests/test_dynamic_array.c)
+add_unity_test(test_heartbeat_history tests/test_heartbeat_history.c)
+add_unity_test(test_state tests/test_state.c)
+add_unity_test(test_phi_accrual_failure_detector tests/test_phi_accrual_failure_detector.c)
 # ----------------------------------------------------------------------------------------
 
 
