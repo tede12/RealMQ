@@ -15,7 +15,7 @@ set(COMMON_SOURCE
         qos/accrual_detector/heartbeat_history.c qos/accrual_detector/heartbeat_history.h
         qos/accrual_detector/phi_accrual_failure_detector.c qos/accrual_detector/phi_accrual_failure_detector.h
         qos/accrual_detector/state.c qos/accrual_detector/state.h
-
+        qos/buffer_segments.c qos/buffer_segments.h
 
         # Utils
         time_utils.h time_utils.h

@@ -34,6 +34,9 @@ typedef struct {
     size_t element_size;    // Size of each element in the array
 } DynamicArray;
 
+// Global dynamic array for storing message IDs awaiting ACK
+extern DynamicArray g_array;
+
 // Initialize dynamic array with a certain capacity
 void init_dynamic_array(DynamicArray *array, size_t initial_capacity, size_t element_size);
 
@@ -78,5 +81,8 @@ char *marshal_uint64_array(DynamicArray *array);
 
 // Unmarshal an uint64_t array from a buffer
 DynamicArray *unmarshal_uint64_array(const char *buffer);
+
+// Diff between two arrays
+int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array);
 
 #endif //DYNAMIC_ARRAY_H

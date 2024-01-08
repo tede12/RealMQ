@@ -13,12 +13,16 @@
 #include "qos/accrual_detector.h"
 #include "qos/dynamic_array.h"
 #include "utils/memory_leak_detector.h"
+#include "qos/accrual_detector/phi_accrual_failure_detector.h"
+
 
 void *g_shared_context;
 int g_count_msg = 0;
+int g_missed_count = 0;
+
 // mutex for g_count_msg
 pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
-DynamicArray g_array;
+pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 Logger client_logger;
@@ -37,31 +41,24 @@ void *responder_thread(void *arg) {
             continue;
         }
 
-        // Get the last message id from the array data.
-        uint64_t *last_id = get_element_by_index(new_array, -1);
-        uint64_t *first_id = get_element_by_index(&g_array, 0);
-
-        size_t missed_count = 0;
-        // todo: Fix it need to get from the new array not in the g_array
-
-        // Remove from the low index to the last index of the array messages, if they are missing, count them.
-        for (uint64_t i = *first_id; i <= *last_id; i++) {
-            if (remove_element_by_id(&g_array, i, true) == -1) {
-                logger(LOG_LEVEL_WARN, "Message with ID %lu is missing, with message: %s", i, g_array.data[i]);
-                // todo should be resent the message (here)
-                missed_count++;
-            }
-        }
+        pthread_mutex_lock(&g_array_mutex);
+        int missed_count = diff_from_arrays(&g_array, new_array);
+        pthread_mutex_unlock(&g_array_mutex);
 
         // Release the resources
         release_dynamic_array(new_array);
         free(new_array);
 
+        // Update failure detector based on missed_count
+        if (missed_count) logger(LOG_LEVEL_WARN, "Missed count: %d", missed_count);
+        adjust_intervals(g_detector->state->history, missed_count);
 
-        update_phi_detector(missed_count);
-
-        if (missed_count > 0)
-            logger(LOG_LEVEL_WARN, "Missed count: %zu", missed_count);
+        // Update the g_missed_count
+        if (missed_count > 0) {
+            pthread_mutex_lock(&g_count_msg_mutex);
+            g_missed_count += missed_count;
+            pthread_mutex_unlock(&g_count_msg_mutex);
+        }
     }
 
     logger(LOG_LEVEL_DEBUG, "Responder thread exiting");
@@ -97,6 +94,9 @@ void client_thread(void *thread_id) {
 
     int count_msg = 0;
 
+    // Send the first heartbeat
+    send_heartbeat(NULL, NULL, true);
+
     // Message Loop
     while (!interrupted) {
 
@@ -123,7 +123,10 @@ void client_thread(void *thread_id) {
             continue;
         }
 
+        pthread_mutex_lock(&g_array_mutex);
         add_to_dynamic_array(&g_array, msg);
+        pthread_mutex_unlock(&g_array_mutex);
+
         const char *msg_buffer = marshal_message(msg);
         if (msg_buffer == NULL) {
             free((void *) msg_buffer);
@@ -137,7 +140,7 @@ void client_thread(void *thread_id) {
             printf("Error in sending message\n");
             break;
         }
-        logger(LOG_LEVEL_INFO2, "Sent message with ID: %lu", msg->id);
+        // logger(LOG_LEVEL_INFO2, "Sent message with ID: %lu", msg->id);
 
         if (count_msg % 100000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
@@ -189,6 +192,19 @@ int main(void) {
     // Initialize the dynamic array
     init_dynamic_array(&g_array, 100000, sizeof(Message));
 
+    // Load the configuration for the failure detector
+    phi_accrual_detector detector_config = {
+            .threshold = 2,
+            .max_sample_size = 1000,
+            .min_std_deviation_ms = 1.0f,
+            .acceptable_heartbeat_pause_ms = 0.0f,
+            .first_heartbeat_estimate_ms = 1.0f,
+            .state = NULL
+    };
+
+    // Initialize the failure detector
+    init_phi_accrual_detector(&detector_config);
+
     void *dish = create_socket(
             g_shared_context,
             ZMQ_DISH,
@@ -221,8 +237,10 @@ int main(void) {
     logger(LOG_LEVEL_INFO, "Destroyed context");
 
     logger(LOG_LEVEL_INFO, "Total messages sent: %d", g_count_msg);
+    logger(LOG_LEVEL_INFO, "Total messages missed: %d", g_missed_count);
     release_config();
     release_dynamic_array(&g_array);
+    delete_phi_accrual_detector(g_detector);
     logger(LOG_LEVEL_INFO, "Released configuration");
 
     check_for_leaks();  // Check for memory leaks

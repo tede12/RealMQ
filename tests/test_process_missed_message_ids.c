@@ -1,6 +1,9 @@
 #include "unity.h"
 #include "utils/utils.h"
 #include "string_manip.h"
+#include "qos/dynamic_array.h"
+#include "qos/buffer_segments.h"
+#include "utils/memory_leak_detector.h"
 
 char **generate_uuids(size_t count) {
     char **uuids = (char **) malloc(count * sizeof(char *));
@@ -24,7 +27,16 @@ void setUp(void) {
     message_ids = generate_uuids(num_message_ids);
 }
 
-void tearDown(void) {}
+void tearDown(void) {
+    // Free the message IDs
+    for (size_t i = 0; i < num_message_ids; ++i) {
+        free(message_ids[i]);
+    }
+    free(message_ids);
+
+    // Destroy the mutex
+    pthread_mutex_destroy(&message_ids_mutex);
+}
 
 void test_process_missed_message_ids(void) {
     // Create a buffer of IDs, deliberately missing the last generated UUID
@@ -56,9 +68,78 @@ void test_process_missed_message_ids(void) {
     free(tmp);
 }
 
+void test_buffer_and_get_missed_ids(void) {
+    /*
+     * This test is doing what is done in the function `diff_from_arrays` in common/qos/dynamic_array.c
+     */
+
+    // Initialize the dynamic array
+    init_dynamic_array(&g_array, 100, sizeof(Message));
+
+    // --------------------------------------------- Client part -------------------------------------------------------
+
+    // These should be sent messages (so 10 messages in total)
+    for (int i = 1; i < 11; i++) {
+        // "Hello World! %d", i
+        char *custom_message = (char *) malloc(20 * sizeof(char));
+        sprintf(custom_message, "Hello World! %d", i - 1);
+        Message *msg = create_element(custom_message);
+        if (msg == NULL) {
+            continue;
+        }
+        add_to_dynamic_array(&g_array, msg);
+        free(custom_message);
+    }
+
+    // --------------------------------------------- Responder part ----------------------------------------------------
+
+    // These should be the arrived messages (so only 5 messages in total)
+    char *buffer = "1|4|5|7|10";
+
+    // Retrieve all messages ids sent from the client to the server
+    DynamicArray *new_array = unmarshal_uint64_array(buffer);
+    if (new_array == NULL) {
+        return;
+    }
+
+    // Get the last message id from the array data.
+    uint64_t *last_id = get_element_by_index(new_array, -1);
+    uint64_t *first_id = get_element_by_index(&g_array, 0);
+
+    int missed_count = 0;
+
+    TEST_ASSERT_NOT_NULL(first_id);
+    TEST_ASSERT_NOT_NULL(last_id);
+
+    // Remove from the low index to the last index of the array messages, if they are missing, count them.
+    size_t idx = 0;
+    size_t idx_start = *first_id;
+    size_t idx_end = *last_id;
+    for (size_t i = idx_start; i <= idx_end; i++) {
+        if (remove_element_by_id(new_array, i, true) == -1) {
+            printf("Message with ID %zu is missing, with message: %s\n",
+                   idx,
+                   ((Message *) g_array.data[idx])->content);
+            missed_count++;
+        }
+        idx++;
+    }
+
+    TEST_ASSERT_EQUAL_INT(5, missed_count);
+
+    // Release the resources
+    release_dynamic_array(new_array);
+    release_dynamic_array(&g_array);
+    free(new_array);
+}
+
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_process_missed_message_ids);
-    return UNITY_END();
+    RUN_TEST(test_buffer_and_get_missed_ids);
+    UNITY_END();
+
+    check_for_leaks();  // Check for memory leaks
+    return 0;
 }

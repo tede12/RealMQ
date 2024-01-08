@@ -9,6 +9,8 @@ volatile uint64_t atomic_msg_id = 0;
 // Mutex for thread-safety while accessing the IDs array
 pthread_mutex_t msg_ids_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+DynamicArray g_array;
+
 
 /**
  * @brief Initialize the dynamic array with the given initial capacity.
@@ -54,8 +56,7 @@ void add_to_dynamic_array(DynamicArray *array, void *element) {
         resize_dynamic_array(array);
     }
 
-    // Deep Copy
-
+    // Deep Copy the element
     void *new_element = NULL;
     if (array->element_size == sizeof(uint64_t)) {
 
@@ -334,6 +335,7 @@ Message *unmarshal_message(const char *buffer) {
     return msg;
 }
 
+// I want that marshal_uint64_array give me back an array of a struct that contain maximum a char of 1024 because i can't send more than 1024 bytes in a buffer
 
 /**
  * @brief Marshal a uint64_t array into a buffer.
@@ -393,6 +395,45 @@ DynamicArray *unmarshal_uint64_array(const char *buffer) {
 
     free(str);
     return array;
+}
+
+/**
+ * @brief This function is used to get the difference between two arrays. It returns the number of missed messages.
+ * @param first_array The array of the messages sent from the client to the server.
+ * @param second_array The array of the messages received from the server.
+ * @return The number of missed messages.
+ */
+int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array) {
+    // Get the last message id from the array data.
+    uint64_t *last_id = get_element_by_index(second_array, -1);     // new_array
+    uint64_t *first_id = get_element_by_index(first_array, 0);      // g_array
+
+    if (last_id == NULL || first_id == NULL) {
+        return 0;
+    }
+
+    int missed_count = 0;
+
+    // Remove from the low index to the last index of the array messages, if they are missing, count them.
+    size_t idx = 0;
+    size_t idx_start = *first_id;
+    size_t idx_end = *last_id;
+    for (size_t i = idx_start; i <= idx_end; i++) {
+        if (remove_element_by_id(second_array, i, true) == -1) {
+            missed_count++;
+            // todo depends on the type of the array we could resend the message
+        }
+        idx++;
+
+        // This is needed to clean the array of IDs from the client
+        remove_element_by_id(first_array, i, true);
+    }
+
+    // This is needed to clean the array of IDs from the client
+    //    clean_all_elements(first_array);
+
+    return missed_count;
+
 }
 
 

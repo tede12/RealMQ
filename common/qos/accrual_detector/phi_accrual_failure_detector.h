@@ -26,6 +26,9 @@ typedef struct {
 
 // Mutex for the compare_and_set function
 extern pthread_mutex_t compare_mutex;
+extern phi_accrual_detector *g_detector;
+
+void init_phi_accrual_detector(phi_accrual_detector *detector);
 
 phi_accrual_detector *new_phi_accrual_detector(
         float threshold,

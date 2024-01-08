@@ -12,6 +12,25 @@
 // Mutex for compare_and_set
 pthread_mutex_t compare_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+phi_accrual_detector *g_detector = NULL;
+
+/**
+ * Initialize the phi_accrual_detector object for global usage with g_detector variable
+ * @param detector is the phi_accrual_detector object
+ */
+void init_phi_accrual_detector(phi_accrual_detector *detector) {
+    if (g_detector == NULL) {
+        g_detector = new_phi_accrual_detector(
+                detector->threshold,
+                detector->max_sample_size,
+                detector->min_std_deviation_ms,
+                detector->acceptable_heartbeat_pause_ms,
+                detector->first_heartbeat_estimate_ms,
+                detector->state
+        );
+    }
+}
+
 /**
  * Create a new phi_accrual_detector object
  * @param threshold is the threshold value for the phi

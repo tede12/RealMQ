@@ -65,6 +65,7 @@ set(
         common/qos/accrual_detector/heartbeat_history.c
         common/qos/accrual_detector/phi_accrual_failure_detector.c
         common/qos/accrual_detector/state.c
+        common/qos/buffer_segments.c
 
         # Utils
         common/utils/fs_utils.c
@@ -160,10 +161,8 @@ add_unity_test(test_dynamic_array tests/test_dynamic_array.c)
 add_unity_test(test_heartbeat_history tests/test_heartbeat_history.c)
 add_unity_test(test_state tests/test_state.c)
 add_unity_test(test_phi_accrual_failure_detector tests/test_phi_accrual_failure_detector.c)
+add_unity_test(test_buffer_segments tests/test_buffer_segments.c)
 # ----------------------------------------------------------------------------------------
-
-
-
 
 
 

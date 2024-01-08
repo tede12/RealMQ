@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 // Define DEBUG_MEMORY for detailed logging
-#define DEBUG_MEMORY
+//#define DEBUG_MEMORY
 
 typedef struct MemoryBlock {
     void *address;              // Address of the allocated memory

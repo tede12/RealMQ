@@ -1,15 +1,13 @@
 #include <zmq.h>
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h> // for sleep()
 #include "utils/utils.h"
 #include "core/config.h"
 #include "core/logger.h"
 #include "utils/memory_leak_detector.h"
 #include "core/zhelpers.h"
-#include "qos/accrual_detector.h"
 #include "qos/dynamic_array.h"
+#include "qos/buffer_segments.h"
 
 Logger server_logger;
 DynamicArray g_array;
@@ -79,18 +77,27 @@ int main(void) {
             continue;
         } else if (strncmp(buffer, "HB", 2) == 0) {
             // UDP Packet Detection
-//            logger(LOG_LEVEL_INFO2, "Received HB signal");
+            // logger(LOG_LEVEL_INFO2, "Received HB signal");
 
             // Create a buffer with the IDs
-            const char *ids_buffer = marshal_uint64_array(&g_array);
+            BufferSegmentArray segments_array = marshal_and_split(&g_array);
+            // Send segments with max size of MAX_SEGMENT_SIZE
+            for (size_t i = 0; i < segments_array.count; i++) {
+                // Send the buffer with the IDs
+                zmq_send_group(
+                        radio,
+                        get_group(RESPONDER_GROUP),
+                        segments_array.segments[i].data,
+                        0
+                );
+                // logger(LOG_LEVEL_INFO2, "Sent IDS Buffer");
+
+            }
+            free_segment_array(&segments_array);
 
             // Clean the array of IDs
             clean_all_elements(&g_array);
 
-            // Send the buffer with the IDs
-            zmq_send_group(radio, get_group(RESPONDER_GROUP), ids_buffer, 0);
-//            logger(LOG_LEVEL_INFO2, "Sent IDS Buffer");
-            free((void *) ids_buffer);
             continue;
         }
 
