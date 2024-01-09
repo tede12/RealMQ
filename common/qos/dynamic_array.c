@@ -43,6 +43,15 @@ void resize_dynamic_array(DynamicArray *array) {
     array->capacity = new_capacity;
 }
 
+/**
+ * @brief Add an element to the dynamic array.
+ * @param array
+ * @param new_element
+ */
+void add_element(DynamicArray *array, void *new_element) {
+    array->data[array->size++] = new_element;
+}
+
 
 /**
  * @brief Add an item to the dynamic array.
@@ -88,11 +97,10 @@ void add_to_dynamic_array(DynamicArray *array, void *element) {
         exit(EXIT_FAILURE);
     }
 
-    array->data[array->size++] = new_element;
+    add_element(array, new_element);
 
     pthread_mutex_unlock(&msg_ids_mutex);
 }
-
 
 /**
  * @brief Debugging function to print the dynamic array.
@@ -244,6 +252,9 @@ size_t clean_all_elements(DynamicArray *array) {
  * @param element
  */
 void release_element(void *element, size_t element_size) {
+    if (element == NULL) {
+        return;
+    }
     if (element_size == sizeof(Message)) {
         if (((Message *) element)->content != NULL) {
             free(((Message *) element)->content);
@@ -251,10 +262,9 @@ void release_element(void *element, size_t element_size) {
         }
 
     }
-    if (element != NULL) {
-        free(element);
-        element = NULL;
-    }
+
+    free(element);
+    element = NULL;
 }
 
 
@@ -406,7 +416,7 @@ DynamicArray *unmarshal_uint64_array(const char *buffer) {
 int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array) {
     // Get the last message id from the array data.
     uint64_t *last_id = get_element_by_index(second_array, -1);     // new_array
-    uint64_t *first_id = get_element_by_index(first_array, 0);      // g_array
+    uint64_t *first_id = get_element_by_index(second_array, 0);      // g_array
 
     if (last_id == NULL || first_id == NULL) {
         return 0;
@@ -422,15 +432,16 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array) {
         if (remove_element_by_id(second_array, i, true) == -1) {
             missed_count++;
             // todo depends on the type of the array we could resend the message
+            printf("Message with ID %zu is missing\n", idx);
         }
         idx++;
 
         // This is needed to clean the array of IDs from the client
-        remove_element_by_id(first_array, i, true);
+        // remove_element_by_id(first_array, i, true);
     }
 
     // This is needed to clean the array of IDs from the client
-    //    clean_all_elements(first_array);
+    clean_all_elements(first_array);
 
     return missed_count;
 

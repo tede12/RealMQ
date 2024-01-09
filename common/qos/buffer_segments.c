@@ -91,7 +91,6 @@ BufferSegmentArray split_buffer(char *buffer) {
 }
 
 
-// Example usage
 BufferSegmentArray marshal_and_split(DynamicArray *array) {
     char *buffer = marshal_uint64_array(array);
     if (buffer == NULL) {

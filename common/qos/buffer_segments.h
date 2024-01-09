@@ -17,10 +17,6 @@ typedef struct {
 
 extern size_t MAX_SEGMENT_SIZE;
 
-
-BufferSegmentArray split_buffer(char *buffer);
-
-// Example usage
 BufferSegmentArray marshal_and_split(DynamicArray *array);
 
 // Remember to free the allocated memory after usage

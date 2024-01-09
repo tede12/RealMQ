@@ -304,6 +304,7 @@ int read_config(const char *filename) {
  * @param config The configuration struct.
  */
 void release_config() {
+    printf("\n\n");
     logger(LOG_LEVEL_DEBUG, "Releasing configuration.");
     // Only need to free the Strings, the rest is allocated statically
 

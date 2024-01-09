@@ -102,9 +102,9 @@ bool is_available(phi_accrual_detector *detector, long long timestamp) {
 
     float phi_value = get_phi(detector, timestamp);
 
-    if (phi_value > detector->threshold) {
-        logger(LOG_LEVEL_INFO, "phi_value: %8.4lf > self.threshold: %8.4lf", phi_value, detector->threshold);
-    }
+//    if (phi_value > detector->threshold) {
+//        logger(LOG_LEVEL_INFO, "phi_value: %8.4lf > self.threshold: %8.4lf", phi_value, detector->threshold);
+//    }
 
     return phi_value < detector->threshold;
 }
