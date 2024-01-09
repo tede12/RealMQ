@@ -63,7 +63,7 @@ int main(void) {
 
     while (!interrupted) {
         char buffer[1024];
-        if (zmq_receive(dish, buffer, 0) == -1) {
+        if (zmq_receive(dish, buffer, sizeof(buffer), 0) == -1) {
             continue;
         }
 
@@ -83,6 +83,8 @@ int main(void) {
             BufferSegmentArray segments_array = marshal_and_split(&g_array);
             // Send segments with max size of MAX_SEGMENT_SIZE
             for (size_t i = 0; i < segments_array.count; i++) {
+                printf("Sending segment %s\n", segments_array.segments[i].data);
+
                 // Send the buffer with the IDs
                 zmq_send_group(
                         radio,

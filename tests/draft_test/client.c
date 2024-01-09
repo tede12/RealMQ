@@ -30,10 +30,12 @@ Logger client_logger;
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
     while (!interrupted) {
-        char buffer[1024];
-        if (zmq_receive(socket, buffer, 0) == -1) {
+        char buffer[2048];
+        if (zmq_receive(socket, buffer, sizeof(buffer), 0) == -1) {
             continue;
         }
+
+//        printf("Buffer: %s\n", buffer);
 
         // Retrieve all messages ids sent from the client to the server
         DynamicArray *new_array = unmarshal_uint64_array(buffer);
@@ -149,7 +151,7 @@ void client_thread(void *thread_id) {
         release_element(msg, sizeof(Message));
 
         // Random sleep from 0 to 200ms
-        rand_sleep(0, 50);
+//        rand_sleep(1, 10);
     }
 
     // Add count_msg to g_count_msg
@@ -179,7 +181,7 @@ int main(void) {
             .log_level = LOG_LEVEL_INFO
     };
 
-    Logger_init("realmq_sever", &logger_config, &client_logger);
+    Logger_init("realmq_client", &logger_config, &client_logger);
 
     if (read_config("../config.yaml") != 0) {
         logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
@@ -194,11 +196,11 @@ int main(void) {
 
     // Load the configuration for the failure detector
     phi_accrual_detector detector_config = {
-            .threshold = 2,
+            .threshold = 6,
             .max_sample_size = 1000,
-            .min_std_deviation_ms = 1.0f,
+            .min_std_deviation_ms = 10.0f,
             .acceptable_heartbeat_pause_ms = 0.0f,
-            .first_heartbeat_estimate_ms = 1.0f,
+            .first_heartbeat_estimate_ms = 10.0f,
             .state = NULL
     };
 
