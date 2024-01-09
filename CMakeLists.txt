@@ -162,6 +162,7 @@ add_unity_test(test_heartbeat_history tests/test_heartbeat_history.c)
 add_unity_test(test_state tests/test_state.c)
 add_unity_test(test_phi_accrual_failure_detector tests/test_phi_accrual_failure_detector.c)
 add_unity_test(test_buffer_segments tests/test_buffer_segments.c)
+add_unity_test(test_client_server_message_passing tests/test_client_server_message_passing.c)
 # ----------------------------------------------------------------------------------------
 
 
