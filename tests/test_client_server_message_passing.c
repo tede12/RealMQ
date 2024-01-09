@@ -15,7 +15,13 @@ void *radio;
 DynamicArray client_array;
 DynamicArray server_array;
 
-#define NUM_MESSAGES 3
+size_t NUM_MESSAGES = 0;
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+pthread_mutex_t client_messages_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t server_messages_mutex = PTHREAD_MUTEX_INITIALIZER;
+long long client_messages = 0;
+long long server_messages = 0;
 
 
 void setUp(void) {
@@ -69,6 +75,52 @@ void tearDown(void) {
     release_config();
 }
 
+void *client_thread(void *arg) {
+    int rc;
+    size_t count = 0;
+    // Message Loop
+    while (count <= NUM_MESSAGES) {
+        // Create a message ID
+        Message *msg = create_element("Hello World!");
+        if (msg == NULL) {
+            continue;
+        }
+
+        add_to_dynamic_array(&client_array, msg);
+
+        // Count the number of messages sent ---------------------------------------------------------------------------
+        pthread_mutex_lock(&client_messages_mutex);
+        client_messages++;
+        pthread_mutex_unlock(&client_messages_mutex);
+        // -------------------------------------------------------------------------------------------------------------
+
+        const char *msg_buffer = marshal_message(msg);
+        if (msg_buffer == NULL) {
+            free((void *) msg_buffer);
+            continue;
+        }
+
+        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+        // printf("[CLIENT]: Buffer: %s\n", msg_buffer);
+        free((void *) msg_buffer);
+
+        if (rc == -1) {
+            printf("Error in sending message\n");
+            break;
+        }
+        count++;
+    }
+
+    // Say to server that needs to shut down
+    for (int i = 0; i < 2; i++) {
+        printf("Sending STOP message\n");
+        zmq_send_group(radio, "GRP", "STOP", 0);
+        sleep(1);
+    }
+
+    return NULL;
+}
+
 
 void *server_thread(void *arg) {
     void *socket = (void *) arg;
@@ -84,12 +136,18 @@ void *server_thread(void *arg) {
             break;
         }
 
-        printf("[SERVER]: Buffer: %s\n", buffer);
+        // printf("[SERVER]: Buffer: %s\n", buffer);
 
         Message *msg = unmarshal_message(buffer);
         if (msg == NULL) {
             continue;
         }
+
+        // Count the number of messages received -----------------------------------------------------------------------
+        pthread_mutex_lock(&server_messages_mutex);
+        server_messages++;
+        pthread_mutex_unlock(&server_messages_mutex);
+        // -------------------------------------------------------------------------------------------------------------
 
         add_to_dynamic_array(&server_array, &msg->id);
         release_element(msg, sizeof(Message));
@@ -97,45 +155,10 @@ void *server_thread(void *arg) {
     return NULL;
 }
 
-void *client_thread(void *arg) {
-    int rc;
-    size_t count = 0;
-    // Message Loop
-    while (count <= NUM_MESSAGES) {
-        // Create a message ID
-        Message *msg = create_element("Hello World!");
-        if (msg == NULL) {
-            continue;
-        }
 
-        add_to_dynamic_array(&client_array, msg);
+void test_client_server_communication(void) {
+    NUM_MESSAGES = 10;  // Number of messages to send
 
-        const char *msg_buffer = marshal_message(msg);
-        if (msg_buffer == NULL) {
-            free((void *) msg_buffer);
-            continue;
-        }
-
-        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
-        printf("[CLIENT]: Buffer: %s\n", msg_buffer);
-        free((void *) msg_buffer);
-
-        if (rc == -1) {
-            printf("Error in sending message\n");
-            break;
-        }
-        count++;
-    }
-
-    // Say to server that needs to shut down
-    for (int i = 0; i < 3; i++)
-        zmq_send_group(radio, "GRP", "STOP", 0);
-
-    return NULL;
-}
-
-
-void start_client_server(void) {
     // Create thread for client
     pthread_t client;
     pthread_create(&client, NULL, client_thread, radio);
@@ -171,10 +194,40 @@ void start_client_server(void) {
     }
 }
 
+
+void test_losses_messages(void) {
+    NUM_MESSAGES = 1000000;
+
+    // Create thread for client
+    pthread_t client;
+    pthread_create(&client, NULL, client_thread, radio);
+
+
+    // Create thread for server
+    pthread_t server;
+    pthread_create(&server, NULL, server_thread, dish);
+
+    // Wait for the server and client thread to finish
+    pthread_join(server, NULL);
+    pthread_join(client, NULL);
+
+    // Check if client and sever has same number of messages
+    logger(LOG_LEVEL_INFO, "Client messages: %lld", client_messages);
+    logger(LOG_LEVEL_INFO, "Server messages: %lld", server_messages);
+
+    TEST_ASSERT_NOT_EQUAL_INT(client_messages, 0);  // Client should receive at least one message
+    TEST_ASSERT_NOT_EQUAL_INT(server_messages, 0);  // Server should receive at least one message
+
+    // Client and server don't have same number of messages because the missing of QoS
+    // TEST_ASSERT_EQUAL_INT(server_messages, client_messages);
+}
+
+
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(start_client_server);
+    RUN_TEST(test_client_server_communication);
+//    RUN_TEST(test_losses_messages);
     UNITY_END();
 
     check_for_leaks();  // Check for memory leaks

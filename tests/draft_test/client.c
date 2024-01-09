@@ -29,10 +29,15 @@ Logger client_logger;
 
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
-    while (!interrupted) {
+    while (true) {
         char buffer[2048];
         if (zmq_receive(socket, buffer, sizeof(buffer), 0) == -1) {
             continue;
+        }
+
+        if (strcmp(buffer, "STOP") == 0) {
+            logger(LOG_LEVEL_INFO, "Received STOP message");
+            break;
         }
 
 //        printf("Buffer: %s\n", buffer);

@@ -8,9 +8,13 @@
 #include "core/zhelpers.h"
 #include "qos/dynamic_array.h"
 #include "qos/buffer_segments.h"
+#include "math.h"
 
+pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 Logger server_logger;
 DynamicArray g_array;
+long long received_messages = 0;
+#define MAX(a, b) (((a)>(b))?(a):(b))
 
 int main(void) {
     printf("Server started\n");
@@ -109,10 +113,14 @@ int main(void) {
         }
 
         add_to_dynamic_array(&g_array, &msg->id);
+        pthread_mutex_lock(&g_count_msg_mutex);
+        count_msg++;
+        // keep max from received messages and msg->id
+        received_messages = MAX(received_messages, msg->id);
+        pthread_mutex_unlock(&g_count_msg_mutex);
 
 //        logger(LOG_LEVEL_INFO2, "Received message, with ID: %lu, Content: %s", msg->id, msg->content);
 
-        count_msg++;
         release_element(msg, sizeof(Message));
 
         if (count_msg % 100000 == 0 && count_msg != 0) {
@@ -120,7 +128,17 @@ int main(void) {
         }
     }
 
+    // Wait a bit before sending the stop signal to the responder thread (in client)
+    sleep(3);
+    zmq_send_group(
+            radio,
+            get_group(RESPONDER_GROUP),
+            "STOP",
+            0
+    );
+
     logger(LOG_LEVEL_INFO2, "Total received messages: %d", count_msg);
+    logger(LOG_LEVEL_INFO2, "Total received messages2: %lld", received_messages);
 
     zmq_close(radio);
     zmq_close(dish);

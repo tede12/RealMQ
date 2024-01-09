@@ -432,7 +432,7 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array) {
         if (remove_element_by_id(second_array, i, true) == -1) {
             missed_count++;
             // todo depends on the type of the array we could resend the message
-            printf("Message with ID %zu is missing\n", idx);
+            // printf("Message with ID %zu is missing\n", idx);
         }
         idx++;
 
