@@ -133,11 +133,61 @@ void test_buffer_and_get_missed_ids(void) {
     free(new_array);
 }
 
+void test_client_server_missing_ids(void) {
+    /*
+     * This test is doing what is done in the function `diff_from_arrays` in common/qos/dynamic_array.c
+     */
+
+    // Initialize the dynamic array
+    init_dynamic_array(&g_array, 100, sizeof(Message));
+
+    // --------------------------------------------- Client part -------------------------------------------------------
+
+    // Messages sent
+    uint64_t values[] = {
+            13, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24, 25, 26
+    };
+    size_t values_size = sizeof(values) / sizeof(values[0]);
+
+    for (int i = 0; i < values_size; i++) {
+        char *custom_message = (char *) malloc(20 * sizeof(char));
+        sprintf(custom_message, "Hello World! %llu", values[i]);
+        Message *msg = create_element(custom_message);
+        if (msg == NULL) continue;
+        add_to_dynamic_array(&g_array, msg);
+        free(custom_message);
+    }
+
+    // --------------------------------------------- Responder part ----------------------------------------------------
+    // "13|14|15|16|17|21|22|23|24|25"
+
+    // Messages received (from buffer)
+    char *buffer = "13|14|15|16|17|21|22|24|25";
+
+    // Retrieve all messages ids sent from the client to the server
+    DynamicArray *new_array = unmarshal_uint64_array(buffer);
+    if (new_array == NULL) {
+        return;
+    }
+
+    int missed_count = diff_from_arrays(&g_array, new_array);
+    // printing the missed ID should be 5, 6, 7, 10 (index) that corresponds to 18, 19, 20, 23 (values)
+
+    TEST_ASSERT_EQUAL_INT(missed_count, 4);
+
+    // Release the resources
+    release_dynamic_array(new_array);
+    release_dynamic_array(&g_array);
+    free(new_array);
+}
+
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_process_missed_message_ids);
     RUN_TEST(test_buffer_and_get_missed_ids);
+    RUN_TEST(test_client_server_missing_ids);
     UNITY_END();
 
     check_for_leaks();  // Check for memory leaks
