@@ -36,6 +36,9 @@ void tearDown(void) {
 
     // Destroy the mutex
     pthread_mutex_destroy(&message_ids_mutex);
+
+    // Reset the atomic message ID for each test
+    reset_message_id();
 }
 
 void test_process_missed_message_ids(void) {
@@ -116,10 +119,10 @@ void test_buffer_and_get_missed_ids(void) {
     size_t idx_start = *first_id;
     size_t idx_end = *last_id;
     for (size_t i = idx_start; i <= idx_end; i++) {
-        if (remove_element_by_id(new_array, i, true) == -1) {
-            printf("Message with ID %zu is missing, with message: %s\n",
-                   idx,
-                   ((Message *) g_array.data[idx])->content);
+        if (remove_element_by_id(new_array, i, true, true) == -1) {
+            // printf("Message with ID %zu is missing, with message: %s\n",
+            //        idx,
+            //        ((Message *) g_array.data[idx])->content);
             missed_count++;
         }
         idx++;
@@ -133,6 +136,22 @@ void test_buffer_and_get_missed_ids(void) {
     free(new_array);
 }
 
+
+void print_array(DynamicArray *array, bool print_content) {
+    printf("\n");
+    for (size_t i = 0; i < array->size; ++i) {
+        if (print_content) {
+            printf("array[%zu]: %llu (%s)\n", i, *(uint64_t *) array->data[i], ((Message *) array->data[i])->content);
+        } else {
+            printf("array[%zu]: %llu\n", i, *(uint64_t *) array->data[i]);
+        }
+    }
+
+    for (size_t i = 0; i < 50; ++i)
+        printf("-");
+    printf("\n");
+}
+
 void test_client_server_missing_ids(void) {
     /*
      * This test is doing what is done in the function `diff_from_arrays` in common/qos/dynamic_array.c
@@ -143,27 +162,24 @@ void test_client_server_missing_ids(void) {
 
     // --------------------------------------------- Client part -------------------------------------------------------
 
-    // Messages sent
-    uint64_t values[] = {
-            13, 14, 15, 16, 17, 18, 19,
-            20, 21, 22, 23, 24, 25, 26
-    };
-    size_t values_size = sizeof(values) / sizeof(values[0]);
+    int starting_value = 11;
+    int ending_value = 23;
 
-    for (int i = 0; i < values_size; i++) {
+    // Messages sent
+    for (int i = starting_value; i < ending_value; i++) {
         char *custom_message = (char *) malloc(20 * sizeof(char));
-        sprintf(custom_message, "Hello World! %llu", values[i]);
+        sprintf(custom_message, "Hello World! %d", i);
+        set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
         Message *msg = create_element(custom_message);
+
         if (msg == NULL) continue;
         add_to_dynamic_array(&g_array, msg);
         free(custom_message);
     }
 
     // --------------------------------------------- Responder part ----------------------------------------------------
-    // "13|14|15|16|17|21|22|23|24|25"
-
     // Messages received (from buffer)
-    char *buffer = "13|14|15|16|17|21|22|24|25";
+    char *buffer = "13|14|16|17|18|22|23";
 
     // Retrieve all messages ids sent from the client to the server
     DynamicArray *new_array = unmarshal_uint64_array(buffer);
@@ -171,10 +187,25 @@ void test_client_server_missing_ids(void) {
         return;
     }
 
-    int missed_count = diff_from_arrays(&g_array, new_array);
-    // printing the missed ID should be 5, 6, 7, 10 (index) that corresponds to 18, 19, 20, 23 (values)
+    // print 2 arrays
+    // printf("\n# Messages sent: %zu\n", g_array.size);
+    // print_array(&g_array, true);
+    //
+    // printf("\n# Messages received: %zu\n", new_array->size);
+    // print_array(new_array, false);
 
-    TEST_ASSERT_EQUAL_INT(missed_count, 4);
+    int missed_count = diff_from_arrays(&g_array, new_array, NULL);
+
+    // printf("\n# Missed count: %d\n", missed_count);
+    // print_array(&g_array, true);
+    // printf("\n# New array size: %zu\n", new_array->size);
+    // print_array(new_array, true);
+
+
+    TEST_ASSERT_EQUAL_INT(missed_count, 5);
+
+    // Check how many messages are in the array
+    TEST_ASSERT_EQUAL_INT(g_array.size, 5);
 
     // Release the resources
     release_dynamic_array(new_array);

@@ -49,11 +49,20 @@ void add_to_dynamic_array(DynamicArray *array, void *element);
 // Create a new message
 void *create_element(const char *content);
 
+// Copy an element
+void copy_element(void *src, void *dst, size_t element_size);
+
 // Debugging function to print the dynamic array
 void print_dynamic_array(DynamicArray *array);
 
 // Generate a unique message ID
 uint64_t generate_unique_message_id();
+
+// Reset the message ID
+void reset_message_id();
+
+// Set the message ID
+void set_message_id(uint64_t value);
 
 // Get an element by index
 void *get_element_by_index(DynamicArray *array, long long index);
@@ -62,7 +71,7 @@ void *get_element_by_index(DynamicArray *array, long long index);
 size_t clean_all_elements(DynamicArray *array);
 
 // Remove a message from the array
-long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search);
+long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search, bool remove_element);
 
 // Free a message
 void release_element(void *element, size_t element_size);
@@ -83,6 +92,6 @@ char *marshal_uint64_array(DynamicArray *array);
 DynamicArray *unmarshal_uint64_array(const char *buffer);
 
 // Diff between two arrays
-int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array);
+int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void* radio);
 
 #endif //DYNAMIC_ARRAY_H

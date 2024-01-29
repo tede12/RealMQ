@@ -22,8 +22,16 @@ bool log_heartbeat = false;  // Set to true to log the heartbeat messages
  * @param socket The socket to use for sending the message
  */
 bool send_heartbeat(void *socket, const char *group, bool force_send) {
+    char heartbeat_message[] = "HB";
+
     if (force_send) {
         // Send the first heartbeat
+        if (g_detector->state->timestamp != 0) {
+            // Case for sending a heartbeat message before disconnecting
+            // (so that the server can detect the latest messages sent)
+            if (socket != NULL) zmq_send_group(socket, group, heartbeat_message, 0);
+            return true;
+        }
         heartbeat(g_detector);
         return true;
     }
@@ -33,9 +41,6 @@ bool send_heartbeat(void *socket, const char *group, bool force_send) {
     // Send a heartbeat before starting to send messages
     if (!is_available(g_detector, 0)) {
         heartbeat(g_detector);
-
-
-        char heartbeat_message[] = "HB";
 
         // Send the heartbeat message
         if (socket != NULL) {

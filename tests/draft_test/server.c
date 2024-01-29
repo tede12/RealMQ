@@ -16,6 +16,33 @@ DynamicArray g_array;
 long long received_messages = 0;
 #define MAX(a, b) (((a)>(b))?(a):(b))
 
+
+#define QOS_TEST
+
+
+void send_ids(void *radio) {
+    // Create a buffer with the IDs
+    BufferSegmentArray segments_array = marshal_and_split(&g_array);
+    // Send segments with max size of MAX_SEGMENT_SIZE
+    for (size_t i = 0; i < segments_array.count; i++) {
+        printf("Sending segment %s\n", segments_array.segments[i].data);
+
+        // Send the buffer with the IDs
+        zmq_send_group(
+                radio,
+                get_group(RESPONDER_GROUP),
+                segments_array.segments[i].data,
+                0
+        );
+        // logger(LOG_LEVEL_INFO2, "Sent IDS Buffer");
+
+    }
+    free_segment_array(&segments_array);
+
+    // Clean the array of IDs
+    clean_all_elements(&g_array);
+}
+
 int main(void) {
     printf("Server started\n");
 
@@ -74,36 +101,20 @@ int main(void) {
         // If message start with "STOP" then stop the server
         if (strncmp(buffer, "STOP", 4) == 0) {
             logger(LOG_LEVEL_INFO, "Received STOP signal");
+            send_ids(radio);    // Notify last IDs
             break;
         } else if (strncmp(buffer, "START", 5) == 0) {
             // Needed for the first message for TCP (slow joiner syndrome)
             logger(LOG_LEVEL_INFO, "Received START signal");
             continue;
         } else if (strncmp(buffer, "HB", 2) == 0) {
+#ifdef QOS_TEST
             // UDP Packet Detection
             // logger(LOG_LEVEL_INFO2, "Received HB signal");
 
-            // Create a buffer with the IDs
-            BufferSegmentArray segments_array = marshal_and_split(&g_array);
-            // Send segments with max size of MAX_SEGMENT_SIZE
-            for (size_t i = 0; i < segments_array.count; i++) {
-                printf("Sending segment %s\n", segments_array.segments[i].data);
-
-                // Send the buffer with the IDs
-                zmq_send_group(
-                        radio,
-                        get_group(RESPONDER_GROUP),
-                        segments_array.segments[i].data,
-                        0
-                );
-                // logger(LOG_LEVEL_INFO2, "Sent IDS Buffer");
-
-            }
-            free_segment_array(&segments_array);
-
-            // Clean the array of IDs
-            clean_all_elements(&g_array);
-
+            // Send a heartbeat message
+            send_ids(radio);
+#endif
             continue;
         }
 
@@ -112,18 +123,20 @@ int main(void) {
             continue;
         }
 
+#ifdef QOS_TEST
         add_to_dynamic_array(&g_array, &msg->id);
+#endif
         pthread_mutex_lock(&g_count_msg_mutex);
         count_msg++;
         // keep max from received messages and msg->id
         received_messages = MAX(received_messages, msg->id);
         pthread_mutex_unlock(&g_count_msg_mutex);
 
-//        logger(LOG_LEVEL_INFO2, "Received message, with ID: %lu, Content: %s", msg->id, msg->content);
+        // logger(LOG_LEVEL_INFO2, "Received message, with ID: %lu, Content: %s", msg->id, msg->content);
 
         release_element(msg, sizeof(Message));
 
-        if (count_msg % 100000 == 0 && count_msg != 0) {
+        if (count_msg % 1000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Received %d messages", count_msg);
         }
     }
@@ -138,7 +151,7 @@ int main(void) {
     );
 
     logger(LOG_LEVEL_INFO2, "Total received messages: %d", count_msg);
-    logger(LOG_LEVEL_INFO2, "Total received messages2: %lld", received_messages);
+    logger(LOG_LEVEL_INFO2, "Max received message ID: %lld", received_messages);
 
     zmq_close(radio);
     zmq_close(dish);

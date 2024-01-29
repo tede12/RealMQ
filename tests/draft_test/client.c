@@ -19,10 +19,15 @@
 void *g_shared_context;
 int g_count_msg = 0;
 int g_missed_count = 0;
+Message *g_last_message = NULL;
+void *g_radio = NULL;
 
 // mutex for g_count_msg
 pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
+#define QOS_TEST
 
 
 Logger client_logger;
@@ -40,7 +45,7 @@ void *responder_thread(void *arg) {
             break;
         }
 
-//        printf("Buffer: %s\n", buffer);
+        printf("Buffer: %s\n", buffer);
 
         // Retrieve all messages ids sent from the client to the server
         DynamicArray *new_array = unmarshal_uint64_array(buffer);
@@ -49,7 +54,7 @@ void *responder_thread(void *arg) {
         }
 
         pthread_mutex_lock(&g_array_mutex);
-        int missed_count = diff_from_arrays(&g_array, new_array);
+        int missed_count = diff_from_arrays(&g_array, new_array, g_radio);
         pthread_mutex_unlock(&g_array_mutex);
 
         // Release the resources
@@ -80,7 +85,7 @@ void client_thread(void *thread_id) {
 
     int rc;
 
-    void *radio = create_socket(
+    g_radio = create_socket(
             g_shared_context,
             get_zmq_type(CLIENT),
             get_address(MAIN_ADDRESS),
@@ -90,7 +95,7 @@ void client_thread(void *thread_id) {
 
     // Send first message only with TCP for avoiding the problem of "slow joiner syndrome."
     if (get_protocol_type() == TCP) {
-        rc = zmq_send_group(radio, "GRP", "START", 0);
+        rc = zmq_send_group(g_radio, "GRP", "START", 0);
         if (rc == -1) {
             printf("Error in sending message\n");
             return;
@@ -101,28 +106,49 @@ void client_thread(void *thread_id) {
 
     int count_msg = 0;
 
+#ifdef QOS_TEST
     // Send the first heartbeat
     send_heartbeat(NULL, NULL, true);
+#endif
 
     // Message Loop
     while (!interrupted) {
 
         // Only used for STOPPING thread
         if (count_msg == config.num_messages) {
+
+#ifdef QOS_TEST
+            while (true) {
+                // wait until g_array is empty
+                pthread_mutex_lock(&g_array_mutex);
+                if (g_array.size == 0) {
+                    pthread_mutex_unlock(&g_array_mutex);
+                    break;
+                }
+                // Send a heartbeat message (for flushing the messages)
+                send_heartbeat(g_radio, get_group(MAIN_GROUP), true);
+
+                logger(LOG_LEVEL_INFO, "Waiting for g_array to be empty (size: %d)", g_array.size);
+                pthread_mutex_unlock(&g_array_mutex);
+                sleep(1);
+            }
+#endif
+
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
-                zmq_send_group(radio, "GRP", "STOP", 0);
+                zmq_send_group(g_radio, "GRP", "STOP", 0);
                 sleep(1);
                 logger(LOG_LEVEL_INFO, "Sent STOP message");
                 handle_interrupt(0);
             }
             break;
         }
-
+#ifdef QOS_TEST
         // ----------------------------------------- PACKET DETECTION --------------------------------------------------
         // Send a heartbeat before starting to send messages
-        send_heartbeat(radio, get_group(MAIN_GROUP), false);
+        send_heartbeat(g_radio, get_group(MAIN_GROUP), false);
         // -------------------------------------------------------------------------------------------------------------
+#endif
 
         // Create a message ID
         Message *msg = create_element("Hello World!");
@@ -131,32 +157,38 @@ void client_thread(void *thread_id) {
         }
 
         pthread_mutex_lock(&g_array_mutex);
+        // copy_element(msg, &g_last_message, sizeof(Message));
+#ifdef QOS_TEST
         add_to_dynamic_array(&g_array, msg);
+#endif
         pthread_mutex_unlock(&g_array_mutex);
 
+        // ----------------------------------------- Send message to server --------------------------------------------
         const char *msg_buffer = marshal_message(msg);
         if (msg_buffer == NULL) {
             free((void *) msg_buffer);
             continue;
         }
 
-        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+        rc = zmq_send_group(g_radio, "GRP", msg_buffer, 0);
         free((void *) msg_buffer);
 
         if (rc == -1) {
             printf("Error in sending message\n");
             break;
         }
+        // -------------------------------------------------------------------------------------------------------------
+
         // logger(LOG_LEVEL_INFO2, "Sent message with ID: %lu", msg->id);
 
-        if (count_msg % 100000 == 0 && count_msg != 0) {
+        if (count_msg % 1000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
         }
         count_msg++;
         release_element(msg, sizeof(Message));
 
         // Random sleep from 0 to 200ms
-//        rand_sleep(1, 10);
+        rand_sleep(0, 10);
     }
 
     // Add count_msg to g_count_msg
@@ -165,7 +197,7 @@ void client_thread(void *thread_id) {
     pthread_mutex_unlock(&g_count_msg_mutex);
 
     // Release the resources
-    zmq_close(radio);
+    zmq_close(g_radio);
     logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
 }
 
@@ -243,8 +275,11 @@ int main(void) {
     zmq_ctx_destroy(g_shared_context);
     logger(LOG_LEVEL_INFO, "Destroyed context");
 
-    logger(LOG_LEVEL_INFO, "Total messages sent: %d", g_count_msg);
-    logger(LOG_LEVEL_INFO, "Total messages missed: %d", g_missed_count);
+    logger(LOG_LEVEL_INFO2, "Total messages sent: %d", g_count_msg);
+    logger(LOG_LEVEL_INFO2, "Total messages missed: %d", g_missed_count);
+
+    // Release the resources
+    release_element(g_last_message, sizeof(Message));
     release_config();
     release_dynamic_array(&g_array);
     delete_phi_accrual_detector(g_detector);

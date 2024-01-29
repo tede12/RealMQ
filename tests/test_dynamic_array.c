@@ -110,7 +110,7 @@ void test_removing_ids_(size_t element_size) {
 
     // Remove the IDs from the array
     for (int i = 0; i < 100; i++) {
-        remove_element_by_id(&g_array, random_ids[i], true);
+        remove_element_by_id(&g_array, random_ids[i], true, true);
     }
 
     // Check the length of the array

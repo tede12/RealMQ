@@ -1,7 +1,9 @@
 #include "dynamic_array.h"
 #include "core/logger.h"
 #include "qos/interpolation_search.h"
+#include "core/zhelpers.h"
 #include <inttypes.h>
+#include <stdatomic.h>
 
 // Atomic for thread-safe unique message ID generation
 volatile uint64_t atomic_msg_id = 0;
@@ -10,7 +12,6 @@ volatile uint64_t atomic_msg_id = 0;
 pthread_mutex_t msg_ids_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 DynamicArray g_array;
-
 
 /**
  * @brief Initialize the dynamic array with the given initial capacity.
@@ -161,12 +162,51 @@ void *create_element(const char *content) {
 
 
 /**
+ * @brief Copy an element with a deep copy.
+ * @param src
+ * @param dst
+ * @param element_size
+ */
+void copy_element(void *src, void *dst, size_t element_size) {
+    if (element_size == sizeof(uint64_t)) {
+        memcpy(dst, src, sizeof(uint64_t));
+    } else if (element_size == sizeof(Message)) {
+        Message *original_msg = (Message *) src;
+        Message *new_msg = (Message *) dst;
+        new_msg->id = original_msg->id;
+        new_msg->content = strdup(original_msg->content);
+    } else {
+        logger(LOG_LEVEL_ERROR, "Unsupported element size");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+/**
  * @brief Generate a unique message ID.
  * @return
  */
 uint64_t generate_unique_message_id() {
     return __atomic_add_fetch(&atomic_msg_id, 1, __ATOMIC_SEQ_CST);
 }
+
+/**
+ * @brief Reset the atomic message ID to 0.
+ * @return
+ */
+void reset_message_id() {
+    __atomic_store_n(&atomic_msg_id, 0, __ATOMIC_SEQ_CST);
+}
+
+/**
+ * @brief Change the atomic message ID to the given value.
+ * @param value
+ * @return
+ */
+void set_message_id(uint64_t value) {
+    __atomic_store_n(&atomic_msg_id, value, __ATOMIC_SEQ_CST);
+}
+
 
 /**
  * @brief Get an element by its index. If negative, it will be counted from the end of the array.
@@ -189,8 +229,12 @@ void *get_element_by_index(DynamicArray *array, long long index) {
  * @brief Remove a message ID from the array of IDs awaiting ACK.
  * @param array
  * @param msg_id
+ * @param use_interpolation_search
+ * @param remove_element
+ * @return The index of the removed element, or -1 if the element was not found.
  */
-long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search) {
+long long
+remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolation_search, bool remove_element) {
     pthread_mutex_lock(&msg_ids_mutex);
     long long index = -1;
 
@@ -214,7 +258,8 @@ long long remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_in
         }
     }
 
-    if (index != -1) {
+    // Remove the element if found and remove_element is true
+    if (index != -1 && remove_element) {
 
         // Release the resources allocated for the element
         release_element(array->data[index], array->element_size);
@@ -407,44 +452,85 @@ DynamicArray *unmarshal_uint64_array(const char *buffer) {
     return array;
 }
 
+// Only for test purposes (remove in future)
+void print_array2(DynamicArray *array, bool print_content) {
+    for (size_t i = 0; i < 50; ++i)
+        printf("*");
+    printf("\n");
+    for (size_t i = 0; i < array->size; ++i) {
+        if (print_content) {
+            printf("array[%zu]: %llu (%s)\n", i, *(uint64_t *) array->data[i], ((Message *) array->data[i])->content);
+        } else {
+            printf("array[%zu]: %llu\n", i, *(uint64_t *) array->data[i]);
+        }
+    }
+
+    for (size_t i = 0; i < 50; ++i)
+        printf("*");
+    printf("\n\n");
+}
+
+
 /**
  * @brief This function is used to get the difference between two arrays. It returns the number of missed messages.
  * @param first_array The array of the messages sent from the client to the server.
  * @param second_array The array of the messages received from the server.
  * @return The number of missed messages.
  */
-int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array) {
-    // Get the last message id from the array data.
-    uint64_t *last_id = get_element_by_index(second_array, -1);     // new_array
-    uint64_t *first_id = get_element_by_index(second_array, 0);      // g_array
-
-    if (last_id == NULL || first_id == NULL) {
-        return 0;
-    }
+int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void *radio) {
+    // printf("Start diff_from_arrays\n");
+    // print_array2(first_array, false);
 
     int missed_count = 0;
 
-    // Remove from the low index to the last index of the array messages, if they are missing, count them.
-    size_t idx = 0;
-    size_t idx_start = *first_id;
-    size_t idx_end = *last_id;
-    for (size_t i = idx_start; i <= idx_end; i++) {
-        if (remove_element_by_id(second_array, i, true) == -1) {
-            missed_count++;
-            // todo depends on the type of the array we could resend the message
-            // printf("Message with ID %zu is missing\n", idx);
-        }
-        idx++;
+    // Iterate backwards to avoid issues when removing elements from the same array
+    for (long long i = (long long) second_array->size - 1; i >= 0; i--) {
 
-        // This is needed to clean the array of IDs from the client
-        // remove_element_by_id(first_array, i, true);
+        uint64_t msg_id = ((Message *) (first_array->data[i]))->id;
+
+        // Case of Missing message (search for it, but not remove it, or I can't get it for the radio)
+        if (remove_element_by_id(second_array, msg_id, true, false) == -1) {
+            missed_count++;
+
+            // get message element
+            // printf("Missing message with ID: %" PRIu64 " and Index: %zu\n", msg_id, i);
+
+            if (radio != NULL && i < first_array->size) {
+                Message *msg = ((Message *) (first_array->data[i]));
+                logger(LOG_LEVEL_INFO, "Resending message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                const char *msg_buffer = marshal_message(msg);
+                if (msg_buffer != NULL) {
+                    int rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+                    if (rc == -1) {
+                        logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                        exit(EXIT_FAILURE);
+                    }
+                    free((void *) msg_buffer);
+                    // release_element(msg, sizeof(Message));
+                } else {
+                    free((void *) msg_buffer);
+                }
+
+                // Remove the element from the array
+                remove_element_by_id(first_array, msg_id, true, true);
+            } else if (i >= first_array->size) {
+                // logger(LOG_LEVEL_ERROR, "Lost message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+            }
+
+        } else {
+            // Case of Received message
+            // printf("Received message with ID: %" PRIu64 " and Index: %zu\n", msg_id, i);
+            // This is needed to clean the array of IDs from the client
+            remove_element_by_id(first_array, msg_id, true, true);
+        }
+
+        // printf("Index: %zu\n", i);
+        // print_array2(first_array, false);
     }
 
     // This is needed to clean the array of IDs from the client
-    clean_all_elements(first_array);
-
+    // clean_all_elements(first_array);
     return missed_count;
-
 }
 
 
