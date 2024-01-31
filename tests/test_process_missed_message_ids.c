@@ -171,18 +171,24 @@ void test_client_server_missing_ids(void) {
         sprintf(custom_message, "Hello World! %d", i);
         set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
         Message *msg = create_element(custom_message);
-
         if (msg == NULL) continue;
+        // fake timeout or will fail next tests
+        msg->timestamp = msg->timestamp - 6000; // make it old
         add_to_dynamic_array(&g_array, msg);
         free(custom_message);
     }
 
+
+    char *buffer = marshal_uint64_array(&g_array);
+    // printf("\n The BUFFER: %s\n", buffer);
+
     // --------------------------------------------- Responder part ----------------------------------------------------
     // Messages received (from buffer)
-    char *buffer = "13|14|16|17|18|22|23";
+    char *buffer2 = "13|14|16|17|18|22|23";
+    // printf("\n The BUFFER2: %s\n", buffer2);
 
     // Retrieve all messages ids sent from the client to the server
-    DynamicArray *new_array = unmarshal_uint64_array(buffer);
+    DynamicArray *new_array = unmarshal_uint64_array(buffer2);
     if (new_array == NULL) {
         return;
     }
@@ -233,8 +239,10 @@ void test_big_differences(void) {
         sprintf(custom_message, "[Value: %llu]", i);
         set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
         Message *msg = create_element(custom_message);
-
         if (msg == NULL) continue;
+
+        // fake timeout or will fail next tests
+        msg->timestamp = msg->timestamp - 6000; // make it old
         add_to_dynamic_array(&g_array, msg);
         free(custom_message);
     }
@@ -252,7 +260,6 @@ void test_big_differences(void) {
             sprintf(custom_message, "[Value2: %llu]", i);
             set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
             Message *msg = create_element(custom_message);
-
             if (msg == NULL) continue;
             add_to_dynamic_array(&g_array2, msg);
             free(custom_message);
