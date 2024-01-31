@@ -153,7 +153,8 @@ void client_thread(void *thread_id) {
         if (try_lock_result == EBUSY) {
             // The mutex was locked by the responder thread
             logger(LOG_LEVEL_WARN, "[client] Waiting for g_array to be empty (size: %d)", g_array.size);
-            return;
+            continue;
+
         } else if (try_lock_result == 0) {
             // The mutex was not locked, and now it's locked by this thread
             // Since we only wanted to check, immediately unlock it
@@ -161,7 +162,7 @@ void client_thread(void *thread_id) {
             // logger(LOG_LEVEL_DEBUG, "Client thread is unlocking g_array_mutex");
         } else {
             logger(LOG_LEVEL_ERROR, "Error in pthread_mutex_trylock");
-            return;
+            continue;
         }
 
 #ifdef QOS_TEST
