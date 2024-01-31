@@ -14,22 +14,22 @@
 #include "utils/memory_leak_detector.h"
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
 
+#define QOS_TEST
 
+// ============================================= Global configuration ==================================================
 void *g_shared_context;
+void *g_radio;
 int g_count_msg = 0;
 int g_missed_count = 0;
-Message *g_last_message = NULL;
-void *g_radio = NULL;
+
+Logger client_logger;
 
 // Mutex for g_count_msg
 pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
+// =====================================================================================================================
 
 
-#define QOS_TEST
-
-
-Logger client_logger;
 
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
@@ -304,7 +304,6 @@ int main(void) {
     logger(LOG_LEVEL_INFO2, "Total messages missed: %d", g_missed_count);
 
     // Release the resources
-    release_element(g_last_message, sizeof(Message));
     release_config();
     release_dynamic_array(&g_array);
     delete_phi_accrual_detector(g_detector);

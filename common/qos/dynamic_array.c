@@ -2,6 +2,7 @@
 #include "core/logger.h"
 #include "qos/interpolation_search.h"
 #include "core/zhelpers.h"
+#include "utils/time_utils.h"
 #include <inttypes.h>
 #include <stdatomic.h>
 
@@ -161,7 +162,7 @@ void *create_element(const char *content) {
     strncpy(msg->content, content, content_length);
     msg->content[content_length] = '\0'; // Ensure null termination
 
-    msg->timestamp = time(NULL);    // Set the timestamp to the current time
+    msg->timestamp = get_current_timestamp();    // Set the timestamp to the current time
 
     return msg;
 }
@@ -495,11 +496,11 @@ void print_array2(DynamicArray *array, bool print_content) {
  * @param timeout
  * @return
  */
-bool check_message_timeout(DynamicArray *array, uint64_t index, time_t timeout) {
+bool check_message_timeout(DynamicArray *array, uint64_t index, long long timeout) {
     if (timeout == 0) {
-        timeout = 2;
+        timeout = 2000;
     }
-    return (time(NULL) - ((Message *) (array->data[index]))->timestamp) > timeout;
+    return (get_current_timestamp() - ((Message *) (array->data[index]))->timestamp) > timeout;
 }
 
 

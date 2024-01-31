@@ -45,5 +45,4 @@ char **process_missed_message_ids(const char *buffer, size_t *missed_count);
 // Function to handle keyboard interrupt
 void handle_interrupt(int sig);
 
-
 #endif //UTILS_H

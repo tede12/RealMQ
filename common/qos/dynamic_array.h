@@ -18,7 +18,7 @@
 typedef struct {
     uint64_t id;
     char *content;
-    time_t timestamp;
+    long long timestamp;
 } Message;
 
 

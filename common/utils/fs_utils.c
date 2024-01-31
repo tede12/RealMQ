@@ -2,13 +2,15 @@
 #include "core/logger.h"
 #include "time_utils.h"
 #include "core/config.h"
+#include "qos/dynamic_array.h"
+#include <json-c/json.h>
 
 
 char *date_time = NULL;
 static int file_counter = 0; // Counter for the file names
 #define MAX_MESSAGES 100000 // Max messages per file
 pthread_mutex_t json_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex for json_messages
-
+json_object *g_json_messages = NULL; // Global JSON object to store the received messages
 
 /**
  * @brief Save statistics to a file
@@ -73,6 +75,9 @@ void save_stats_to_file(json_object **json_messages_ptr) {
 
             double diff = json_object_get_double(json_object_object_get(json_msg, "recv_time")) -
                           json_object_get_double(json_object_object_get(json_msg, "send_time"));
+
+            diff = diff / 1000000; // Convert from nanoseconds to milliseconds
+
             if (json_msg) {
                 fprintf(file, "%s,%d,%f\n",
                         json_object_get_string(json_object_object_get(json_msg, "id")),
@@ -161,5 +166,45 @@ char *create_stats_path() {
             fullPath, totalLength, "%s/%s_%s_%d_result%s",
             config.stats_folder_path, date_time, config.protocol, file_counter, file_extension);
     return fullPath;
+}
+
+// ============================================= JSON Processing =======================================================
+
+/**
+ * @brief Initialize the global JSON object
+ */
+void init_json_messages() {
+    if (g_json_messages == NULL) {
+        g_json_messages = json_object_new_array();
+    }
+}
+
+/**
+ * @brief Free the global JSON object
+ */
+void release_json_messages() {
+    json_object_put(g_json_messages);
+    g_json_messages = NULL;
+}
+
+/**
+ * @brief Add a new message to the global JSON object
+ * @param json_str
+ * @param recv_time
+ */
+void process_json_message(Message *msg) {
+    long long recv_time = get_current_timestamp();
+    // Add the message to the statistical data
+
+    // Create a JSON object for the message
+    json_object *j_obj = json_object_new_object();
+    json_object_object_add(j_obj, "id", json_object_new_uint64(msg->id));
+    json_object_object_add(j_obj, "send_time", json_object_new_uint64(msg->timestamp));
+    json_object_object_add(j_obj, "recv_time", json_object_new_uint64(recv_time));
+    // json_object_object_add(j_obj, "message", json_object_new_string(msg->content));
+
+    pthread_mutex_lock(&json_mutex);    // Import for not corrupting the json_messages array during the saving
+    json_object_array_add(g_json_messages, j_obj);
+    pthread_mutex_unlock(&json_mutex);
 }
 
