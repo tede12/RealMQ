@@ -5,7 +5,7 @@ general:
   protocol: "udp"
   main_address: 127.0.0.1:5555
   responder_address: 127.0.0.1:5556
-  num_threads: 1
+  num_threads: 2
 
   # num_messages: total number of messages that will be sent by the client
   num_messages: 5000

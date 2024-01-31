@@ -83,7 +83,9 @@ void client_thread(void *thread_id) {
 
     int thread_num = *(int *) thread_id;
     int rc;
-    g_radio = create_socket(
+
+    // Unique radio for each thread
+    void *radio = create_socket(
             g_shared_context,
             get_zmq_type(CLIENT),
             get_address(MAIN_ADDRESS),
@@ -93,7 +95,7 @@ void client_thread(void *thread_id) {
 
     // Send first message only with TCP for avoiding the problem of "slow joiner syndrome."
     if (get_protocol_type() == TCP) {
-        rc = zmq_send_group(g_radio, "GRP", "START", 0);
+        rc = zmq_send_group(radio, "GRP", "START", 0);
         if (rc == -1) {
             printf("Error in sending message\n");
             return;
@@ -125,7 +127,7 @@ void client_thread(void *thread_id) {
                     break;
                 }
                 // Send a heartbeat message (for flushing the messages)
-                send_heartbeat(g_radio, get_group(MAIN_GROUP), true);
+                send_heartbeat(radio, get_group(MAIN_GROUP), true);
 
                 logger(LOG_LEVEL_INFO, "[*stop*] Waiting for g_array to be empty (size: %d)", g_array.size);
 
@@ -136,7 +138,7 @@ void client_thread(void *thread_id) {
             // Send STOP message
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
-                zmq_send_group(g_radio, "GRP", "STOP", 0);
+                zmq_send_group(radio, "GRP", "STOP", 0);
                 sleep(1);
                 logger(LOG_LEVEL_INFO, "Sent STOP message");
                 handle_interrupt(0);
@@ -168,7 +170,7 @@ void client_thread(void *thread_id) {
 #ifdef QOS_TEST
         // ----------------------------------------- PACKET DETECTION --------------------------------------------------
         // Send a heartbeat before starting to send messages
-        send_heartbeat(g_radio, get_group(MAIN_GROUP), false);
+        send_heartbeat(radio, get_group(MAIN_GROUP), false);
         // -------------------------------------------------------------------------------------------------------------
 #endif
         pthread_mutex_lock(&g_array_mutex);
@@ -192,7 +194,7 @@ void client_thread(void *thread_id) {
             continue;
         }
 
-        rc = zmq_send_group(g_radio, "GRP", msg_buffer, 0);
+        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
         free((void *) msg_buffer);
 
 
@@ -222,7 +224,7 @@ void client_thread(void *thread_id) {
     pthread_mutex_unlock(&g_count_msg_mutex);
 
     // Release the resources
-    zmq_close(g_radio);
+    zmq_close(radio);
     logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
 }
 
@@ -277,6 +279,19 @@ int main(void) {
             get_group(RESPONDER_GROUP)
     );
 
+    // Used only for sending missed messages
+    g_radio = create_socket(
+            g_shared_context,
+            get_zmq_type(CLIENT),
+            get_address(MAIN_ADDRESS),
+            config.signal_msg_timeout,
+            NULL
+    );
+
+    timespec start_time = get_current_time();
+    logger(LOG_LEVEL_DEBUG, "Start Time: %.3f", get_current_time_value(&start_time));
+
+    // ============================================= Threads Part ======================================================
     pthread_t responder;
     pthread_create(&responder, NULL, responder_thread, dish);
 
@@ -287,6 +302,7 @@ int main(void) {
         thread_ids[i] = i;
         pthread_create(&clients[i], NULL, (void *) client_thread, &thread_ids[i]);
     }
+
     // Wait for client threads to finish
     for (int i = 0; i < config.num_threads; i++) {
         pthread_join(clients[i], NULL);
@@ -294,8 +310,13 @@ int main(void) {
 
     // Wait for the server thread to finish
     pthread_join(responder, NULL);
+    // ============================================= End Threads Part ==================================================
+
+    logger(LOG_LEVEL_DEBUG, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
+           get_elapsed_time(start_time, NULL), config.server_action->sleep_starting_time);
 
     zmq_close(dish);
+    zmq_close(g_radio);
     logger(LOG_LEVEL_INFO, "Closed DISH socket");
     zmq_ctx_destroy(g_shared_context);
     logger(LOG_LEVEL_INFO, "Destroyed context");
