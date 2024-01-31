@@ -8,10 +8,10 @@ general:
   num_threads: 2
 
   # num_messages: total number of messages that will be sent by the client
-  num_messages: 5000
+  num_messages: 50
 
   # message_size: size of the message in bytes that will be sent by the client (random ascii, avoid caching)
-  message_size: 1024
+  message_size: 64
   stats_folder_path: "../stats"
 
   # use_json: if true, the stats will be saved in json format, otherwise in csv format

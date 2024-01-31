@@ -147,10 +147,21 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
             if (socket_group == NULL) {
                 // 2. Connect is used for sending messages
                 rc = zmq_connect(socket, connection);
-                if (rc != 0) {
-                    logger(LOG_LEVEL_ERROR, "Failed to [CONNECT] %s", common_msg);
-                    assert(rc == 0);
+
+                int connect_tries = 5;
+                for (int i = 0; i < connect_tries; i++) {
+                    if (rc == 0) {
+                        break;
+                    }
+                    logger(LOG_LEVEL_WARN, "Failed to [CONNECT], tries left: %d", connect_tries - i);
+                    rc = zmq_connect(socket, connection);
+                    sleep(1);
                 }
+
+//                if (rc != 0) {
+//                    logger(LOG_LEVEL_ERROR, "Failed to [CONNECT] %s", common_msg);
+//                    assert(rc == 0);
+//                }
             } else {
                 // 2. Bind is used for receiving messages, so we also need to join the group (after the setsockopt)
                 rc = zmq_bind(socket, connection);

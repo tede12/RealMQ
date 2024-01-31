@@ -1,5 +1,8 @@
 #include "time_utils.h"
 
+// srand(time(NULL));
+// Init random seed
+
 /**
  * @brief Sleep for a random time between min_ms and max_ms
  *
@@ -7,9 +10,6 @@
  * @param max_ms
  */
 void rand_sleep(int min_ms, int max_ms) {
-    // Init random seed
-    srand(time(NULL));
-
     int range = max_ms - min_ms + 1;
     // Generate random number between min_ms and max_ms
     int sleep_time = min_ms + (rand() % range);

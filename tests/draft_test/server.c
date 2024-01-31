@@ -216,6 +216,7 @@ int main(void) {
 
     release_dynamic_array(&g_array);
     release_config();
+    release_date_time();
     release_json_messages();
 
     check_for_leaks(); // Check for memory leaks

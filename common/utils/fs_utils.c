@@ -131,11 +131,6 @@ char *create_stats_path() {
     // Generate one unique date time for each run
     if (date_time == NULL) {
         // Get the date + time for the filename
-        date_time = malloc(20 * sizeof(char));
-        if (date_time == NULL) {
-            logger(LOG_LEVEL_ERROR, "Allocation error for date_time variable.");
-            return NULL;
-        }
         date_time = get_current_date_time();
     }
 
@@ -158,6 +153,7 @@ char *create_stats_path() {
 
     if (fullPath == NULL) {
         logger(LOG_LEVEL_ERROR, "Errore di allocazione della memoria.");
+        free(date_time);
         return NULL;
     }
 
@@ -165,7 +161,16 @@ char *create_stats_path() {
     snprintf(
             fullPath, totalLength, "%s/%s_%s_%d_result%s",
             config.stats_folder_path, date_time, config.protocol, file_counter, file_extension);
+
     return fullPath;
+}
+
+/**
+ * @brief Free the memory allocated for the date_time variable
+ */
+void release_date_time() {
+    free(date_time);
+    date_time = NULL;
 }
 
 // ============================================= JSON Processing =======================================================
