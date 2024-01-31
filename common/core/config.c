@@ -54,6 +54,7 @@ char *get_address(AddressType address_type) {
     return g_ip_address;
 }
 
+
 /**
  * Get the group name based on the group type.
  * @param group_type The group type.
@@ -339,22 +340,26 @@ void release_config() {
 // Return a string representation of the configuration.
 void print_configuration() {
     char *configuration = malloc(1024);
-
-    if (!configuration) {
+    if (configuration == NULL) {
         logger(LOG_LEVEL_ERROR, "Failed to allocate memory.");
         return;
     }
 
-    char qos_flag[7];
-
+    char qos_flag[4];  // "yes" or "no" plus null terminator
 #ifdef REALMQ_VERSION
-    snprintf(qos_flag, 7, "yes");
+    snprintf(qos_flag, sizeof(qos_flag), "yes");
 #else
-    snprintf(qos_flag, 7, "no");
+    snprintf(qos_flag, sizeof(qos_flag), "no");
 #endif
 
     char *main_address = malloc(32);
     char *responder_address = malloc(32);
+
+    if (main_address == NULL || responder_address == NULL) {
+        logger(LOG_LEVEL_ERROR, "Failed to allocate memory.");
+        return;
+    }
+
     snprintf(main_address, 65, "%s", get_address(MAIN_ADDRESS));
     snprintf(responder_address, 64, "%s", get_address(RESPONDER_ADDRESS));
 
@@ -386,7 +391,6 @@ void print_configuration() {
              config.protocol,
              qos_flag
     );
-
 
     logger(LOG_LEVEL_DEBUG, configuration);
     free(main_address);

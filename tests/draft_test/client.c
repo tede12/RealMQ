@@ -1,10 +1,9 @@
 #include <zmq.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h> // for sleep()
+#include <unistd.h>
 #include <pthread.h>
 #include <ctype.h>
-#include "string_manip.h"
 #include "utils/utils.h"
 #include "utils/time_utils.h"
 #include "core/zhelpers.h"
@@ -14,7 +13,6 @@
 #include "qos/dynamic_array.h"
 #include "utils/memory_leak_detector.h"
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
-#include <inttypes.h>
 
 
 void *g_shared_context;
@@ -23,7 +21,7 @@ int g_missed_count = 0;
 Message *g_last_message = NULL;
 void *g_radio = NULL;
 
-// mutex for g_count_msg
+// Mutex for g_count_msg
 pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -47,22 +45,6 @@ void *responder_thread(void *arg) {
         }
 
 
-//        while (true) {
-//            int try_lock_result = pthread_mutex_trylock(&g_array_mutex);
-//            if (try_lock_result == EBUSY) {
-//                // The mutex was locked by the responder thread
-//                logger(LOG_LEVEL_WARN, "[***] Waiting for g_array to be empty (size: %d)", g_array.size);
-//            } else if (try_lock_result == 0) {
-//                // The mutex was not locked, and now it's locked by this thread
-//                // Since we only wanted to check, immediately unlock it
-//                pthread_mutex_unlock(&g_array_mutex);
-//                break;
-//            } else {
-//                logger(LOG_LEVEL_ERROR, "Error in pthread_mutex_trylock");
-//                break;
-//            }
-//        }
-
         printf("Buffer: %s\n", buffer);
 
         // Retrieve all messages ids sent from the client to the server
@@ -71,11 +53,9 @@ void *responder_thread(void *arg) {
             continue;
         }
 
-//        logger(LOG_LEVEL_DEBUG, "Responder thread is locking g_array_mutex");
         pthread_mutex_lock(&g_array_mutex);
         int missed_count = diff_from_arrays(&g_array, new_array, g_radio);
         pthread_mutex_unlock(&g_array_mutex);
-//        logger(LOG_LEVEL_DEBUG, "Responder thread is unlocking g_array_mutex");
 
         // Release the resources
         release_dynamic_array(new_array);
@@ -102,9 +82,7 @@ void client_thread(void *thread_id) {
     signal(SIGINT, handle_interrupt); // Register the interruption handling function
 
     int thread_num = *(int *) thread_id;
-
     int rc;
-
     g_radio = create_socket(
             g_shared_context,
             get_zmq_type(CLIENT),
@@ -138,13 +116,12 @@ void client_thread(void *thread_id) {
         if (count_msg == config.num_messages) {
 
 #ifdef QOS_TEST
+            // Before sending the STOP message, wait until the g_array is empty (all messages are sent)
             while (true) {
-                // wait until g_array is empty
-//                logger(LOG_LEVEL_DEBUG, "STOP thread is locking g_array_mutex");
+                // Wait until g_array is empty
                 pthread_mutex_lock(&g_array_mutex);
                 if (g_array.size == 0) {
                     pthread_mutex_unlock(&g_array_mutex);
-//                    logger(LOG_LEVEL_DEBUG, "STOP thread is unlocking g_array_mutex");
                     break;
                 }
                 // Send a heartbeat message (for flushing the messages)
@@ -152,37 +129,11 @@ void client_thread(void *thread_id) {
 
                 logger(LOG_LEVEL_INFO, "[*stop*] Waiting for g_array to be empty (size: %d)", g_array.size);
 
-
-//                // Send latest messages in g_array
-//                for (int i = 0; i < g_array.size; i++) {
-//                    Message *msg = ((Message *) (g_array.data[i]));
-//
-//                    logger(LOG_LEVEL_DEBUG, "Resending message with ID: %" PRIu64 " and Index: %zu", msg->id, i);
-//                    const char *msg_buffer = marshal_message(msg);
-//                    if (msg_buffer != NULL) {
-//                        rc = zmq_send_group(g_radio, "GRP", msg_buffer, 0);
-//                        if (rc == -1) {
-//                            logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %" PRIu64 " and Index: %zu",
-//                                   msg->id, i);
-//                            exit(EXIT_FAILURE);
-//                        }
-//                        free((void *) msg_buffer);
-//                        // release_element(msg, sizeof(Message));
-//                    } else {
-//                        free((void *) msg_buffer);
-//                    }
-//
-//                    // Remove the element from the array
-//                    remove_element_by_id(&g_array, msg->id, true, true);
-//                }
-
-
                 pthread_mutex_unlock(&g_array_mutex);
-//                logger(LOG_LEVEL_DEBUG, "STOP thread is unlocking g_array_mutex");
                 sleep(1);
             }
 #endif
-
+            // Send STOP message
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
                 zmq_send_group(g_radio, "GRP", "STOP", 0);
@@ -192,8 +143,6 @@ void client_thread(void *thread_id) {
             }
             break;
         }
-
-
 
         // ----------------------------------------- Send Message ------------------------------------------------------
         // Before sending a message, I check if the responder already finished sending ACKs for the previous messages
@@ -221,7 +170,6 @@ void client_thread(void *thread_id) {
         send_heartbeat(g_radio, get_group(MAIN_GROUP), false);
         // -------------------------------------------------------------------------------------------------------------
 #endif
-        // logger(LOG_LEVEL_DEBUG, "Client thread is locking g_array_mutex");
         pthread_mutex_lock(&g_array_mutex);
 
         // Create a message ID
@@ -230,7 +178,6 @@ void client_thread(void *thread_id) {
             continue;
         }
 
-        // copy_element(msg, &g_last_message, sizeof(Message));
 #ifdef QOS_TEST
         add_to_dynamic_array(&g_array, msg);
 #endif
@@ -256,8 +203,6 @@ void client_thread(void *thread_id) {
 
         // -------------------------------------------------------------------------------------------------------------
 
-        // logger(LOG_LEVEL_INFO2, "Sent message with ID: %lu", msg->id);
-
         if (count_msg % 1000 == 0 && count_msg != 0) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
         }
@@ -265,9 +210,8 @@ void client_thread(void *thread_id) {
         release_element(msg, sizeof(Message));
 
         pthread_mutex_unlock(&g_array_mutex);
-        // logger(LOG_LEVEL_DEBUG, "Client thread is unlocking g_array_mutex");
 
-        // Random sleep from 0 to 200ms
+        // Random sleep from 0 to 10ms
         rand_sleep(0, 10);
     }
 
@@ -283,7 +227,7 @@ void client_thread(void *thread_id) {
 
 int main(void) {
 
-    sleep(3);    // wait for server to start
+    sleep(3);    // Wait for server to start
     printf("Client started\n");
 
     // Create a single context for the entire application
@@ -369,4 +313,5 @@ int main(void) {
 
     return 0;
 }
+
 

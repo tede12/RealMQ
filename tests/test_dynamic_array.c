@@ -6,9 +6,6 @@
 
 #define MAX_CAPACITY 100000     // KEEP THIS VALUE FOR TESTING (or some test would fail)
 
-// Create a new dynamic array
-DynamicArray g_array;
-
 
 void setUp(void) {
     // Reset the atomic message ID for each test
