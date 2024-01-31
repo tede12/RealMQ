@@ -111,9 +111,13 @@ void print_dynamic_array(DynamicArray *array) {
     printf("Dynamic array: ");
     for (size_t i = 0; i < array->size; i++) {
         if (array->element_size == sizeof(Message)) {
-            printf("%" PRIu64 " %s ", ((Message *) array->data[i])->id, ((Message *) array->data[i])->content);
+            printf("%"
+            PRIu64
+            " %s ", ((Message *) array->data[i])->id, ((Message *) array->data[i])->content);
         } else if (array->element_size == sizeof(uint64_t)) {
-            printf("%" PRIu64 " ", *(uint64_t *) array->data[i]);
+            printf("%"
+            PRIu64
+            " ", *(uint64_t *) array->data[i]);
         }
     }
     printf("\n");
@@ -156,6 +160,8 @@ void *create_element(const char *content) {
     }
     strncpy(msg->content, content, content_length);
     msg->content[content_length] = '\0'; // Ensure null termination
+
+    msg->timestamp = time(NULL);    // Set the timestamp to the current time
 
     return msg;
 }
@@ -272,7 +278,7 @@ remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolatio
         // Decrease the size of the array
         array->size--;
     } else if (index == -1) {
-        logger(LOG_LEVEL_ERROR, "Failed to find element with ID: %" PRIu64, msg_id);
+        //logger(LOG_LEVEL_ERROR, "Failed to find element with ID: %" PRIu64, msg_id);
     }
 
     pthread_mutex_unlock(&msg_ids_mutex);
@@ -349,7 +355,7 @@ const char *marshal_message(const Message *msg) {
     }
 
     // Estimate buffer size needed
-    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) + 1;
+    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) +1;
     char *buffer = malloc(buffer_size);
     if (buffer == NULL) {
         return NULL;
@@ -407,7 +413,7 @@ char *marshal_uint64_array(DynamicArray *array) {
     // Calculate required buffer size
     size_t buffer_size = 0;
     for (size_t i = 0; i < array->size; i++) {
-        buffer_size += snprintf(NULL, 0, "%" PRIu64 "|", *(uint64_t *) array->data[i]) + 1;
+        buffer_size += snprintf(NULL, 0, "%" PRIu64 "|", *(uint64_t *) array->data[i]) +1;
     }
 
     char *buffer = malloc(buffer_size);
@@ -474,6 +480,22 @@ void print_array2(DynamicArray *array, bool print_content) {
 
 
 /**
+ * @brief Check if a message is timed out based on the current time and the timestamp of the message, with a default
+ * timeout of 1 second if not specified.
+ * @param array
+ * @param index
+ * @param timeout
+ * @return
+ */
+bool check_message_timeout(DynamicArray *array, uint64_t index, time_t timeout) {
+    if (timeout == 0) {
+        timeout = 2;
+    }
+    return (time(NULL) - ((Message *) (array->data[index]))->timestamp) > timeout;
+}
+
+
+/**
  * @brief This function is used to get the difference between two arrays. It returns the number of missed messages.
  * @param first_array The array of the messages sent from the client to the server.
  * @param second_array The array of the messages received from the server.
@@ -492,6 +514,10 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
 
         // Case of Missing message (search for it, but not remove it, or I can't get it for the radio)
         if (remove_element_by_id(second_array, msg_id, true, false) == -1) {
+            // Check for timeouts
+            if (!check_message_timeout(first_array, i, 0))
+                continue;
+
             missed_count++;
 
             // get message element
@@ -501,13 +527,17 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
             // In this case I have to resend the message (I do not remove the message if I can't send it)
             if (radio != NULL && i < first_array->size) {
                 Message *msg = ((Message *) (first_array->data[i]));
-                logger(LOG_LEVEL_INFO, "Resending message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                logger(LOG_LEVEL_INFO, "Resending message with ID: %"
+                PRIu64
+                " and Index: %zu", msg_id, i);
                 const char *msg_buffer = marshal_message(msg);
                 if (msg_buffer != NULL) {
                     int rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
                     if (rc == -1) {
-                        logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %" PRIu64 " and Index: %zu",
-                               msg_id, i);
+                        logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %"
+                        PRIu64
+                        " and Index: %zu",
+                                msg_id, i);
                         exit(EXIT_FAILURE);
                     }
                     free((void *) msg_buffer);
@@ -519,7 +549,9 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
                 remove_element_by_id(first_array, msg_id, true, true);
 
             } else if (i >= first_array->size) {
-                logger(LOG_LEVEL_ERROR, "Lost message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                logger(LOG_LEVEL_ERROR, "Lost message with ID: %"
+                PRIu64
+                " and Index: %zu", msg_id, i);
             }
             // ---------------------------------------------------------------------------------------------------------
 

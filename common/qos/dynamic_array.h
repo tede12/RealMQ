@@ -12,11 +12,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
 
 // Message structure
 typedef struct {
     uint64_t id;
     char *content;
+    time_t timestamp;
 } Message;
 
 

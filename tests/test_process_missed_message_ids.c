@@ -260,13 +260,9 @@ void test_big_differences(void) {
         }
     }
 
-//    char *buffer1 = marshal_uint64_array(&g_array);
-//    printf("\n The BUFFER1: %s\n", buffer1);
-//    free(buffer1);
-
     // Messages received (from buffer)
     char *buffer = marshal_uint64_array(&g_array2);
-    printf("\n The BUFFER: %s\n", buffer);
+    // printf("\n The BUFFER: %s\n", buffer);
 
     // Retrieve all messages ids sent from the client to the server
     DynamicArray *new_array = unmarshal_uint64_array(buffer);
@@ -274,23 +270,11 @@ void test_big_differences(void) {
         return;
     }
 
-    // print 2 arrays
-    // printf("\n# Messages sent: %zu\n", g_array.size);
-    // print_array(&g_array, true);
-    //
-    // printf("\n# Messages received: %zu\n", new_array->size);
-    // print_array(new_array, false);
-
     int missed_count = diff_from_arrays(&g_array, new_array, NULL);
 
     char *buffer1 = marshal_uint64_array(&g_array);
-    printf("\n The BUFFER1: %s\n", buffer1);
+    // printf("\n The BUFFER1: %s\n", buffer1);
     free(buffer1);
-
-    // printf("\n# Missed count: %d\n", missed_count);
-    // print_array(&g_array, true);
-    // printf("\n# New array size: %zu\n", new_array->size);
-    // print_array(new_array, true);
 
 
     // Check if missed_count == (ending_value - starting_value) - count
@@ -301,9 +285,9 @@ void test_big_differences(void) {
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
-//    RUN_TEST(test_process_missed_message_ids);
-//    RUN_TEST(test_buffer_and_get_missed_ids);
-//    RUN_TEST(test_client_server_missing_ids);
+    RUN_TEST(test_process_missed_message_ids);
+    RUN_TEST(test_buffer_and_get_missed_ids);
+    RUN_TEST(test_client_server_missing_ids);
     RUN_TEST(test_big_differences);
     UNITY_END();
 

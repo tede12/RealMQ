@@ -235,7 +235,7 @@ void client_thread(void *thread_id) {
         add_to_dynamic_array(&g_array, msg);
 #endif
 
-        logger(LOG_LEVEL_DEBUG, "Sending message with ID: %" PRIu64, msg->id);
+        // logger(LOG_LEVEL_DEBUG, "Sending message with ID: %" PRIu64, msg->id);
 
         // ----------------------------------------- Send message to server --------------------------------------------
         const char *msg_buffer = marshal_message(msg);

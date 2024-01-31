@@ -37,6 +37,18 @@ void send_ids(void *radio) {
         // logger(LOG_LEVEL_INFO2, "Sent IDS Buffer");
 
     }
+
+    // Send a wakeup message
+    if (segments_array.count == 0) {
+        // Send an empty message to notify the client that there are no more IDs
+        zmq_send_group(
+                radio,
+                get_group(RESPONDER_GROUP),
+                "WAKEUP",
+                0
+        );
+    }
+
     free_segment_array(&segments_array);
 
     // Clean the array of IDs
@@ -123,7 +135,7 @@ int main(void) {
             continue;
         }
 
-        logger(LOG_LEVEL_DEBUG, "Received message, with ID: %lu", msg->id);
+        // logger(LOG_LEVEL_DEBUG, "Received message, with ID: %lu", msg->id);
 
 
 #ifdef QOS_TEST
