@@ -42,6 +42,9 @@ char *create_if_not_exist_folder(char *folder_path);
 // Function to create the full path for the statistics file
 char *create_stats_path();
 
+// Function to release the date_time variable
+void release_date_time();
+
 // Function to initialize the global JSON object
 void init_json_messages();
 

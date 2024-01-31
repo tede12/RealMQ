@@ -4,7 +4,6 @@
 #include "core/zhelpers.h"
 #include "utils/time_utils.h"
 #include <inttypes.h>
-#include <stdatomic.h>
 
 // Atomic for thread-safe unique message ID generation
 volatile uint64_t atomic_msg_id = 0;

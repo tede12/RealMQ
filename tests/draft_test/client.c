@@ -11,8 +11,9 @@
 #include "core/config.h"
 #include "qos/accrual_detector.h"
 #include "qos/dynamic_array.h"
-#include "utils/memory_leak_detector.h"
+//#include "utils/memory_leak_detector.h"
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
+#include "string_manip.h"
 
 #define QOS_TEST
 
@@ -30,7 +31,6 @@ pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
 // =====================================================================================================================
 
 
-
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
     while (true) {
@@ -43,7 +43,6 @@ void *responder_thread(void *arg) {
             logger(LOG_LEVEL_INFO, "Received STOP message");
             break;
         }
-
 
         printf("Buffer: %s\n", buffer);
 
@@ -103,6 +102,9 @@ void client_thread(void *thread_id) {
         logger(LOG_LEVEL_INFO, "Sent START message");
         sleep(2);
     }
+
+    // Wait for the specified time before starting to send messages
+    s_sleep(config.client_action->sleep_starting_time);
 
     int count_msg = 0;
 
@@ -175,8 +177,17 @@ void client_thread(void *thread_id) {
 #endif
         pthread_mutex_lock(&g_array_mutex);
 
-        // Create a message ID
-        Message *msg = create_element("Hello World!");
+        // Create a message of total size = config.message_size
+        char message[config.message_size];
+        sprintf(message, "Thread %d - Message %d - ", thread_num, count_msg);
+
+        unsigned long current_len = strlen(message);
+        char *rnd_string = random_string(config.message_size - current_len);
+        strcat(message, rnd_string);
+
+        Message *msg = create_element(message);
+        // printf("Message: %s\n", message);
+        free(rnd_string);
         if (msg == NULL) {
             continue;
         }
@@ -189,20 +200,32 @@ void client_thread(void *thread_id) {
 
         // ----------------------------------------- Send message to server --------------------------------------------
         const char *msg_buffer = marshal_message(msg);
+
         if (msg_buffer == NULL) {
-            free((void *) msg_buffer);
+            release_element(msg, sizeof(Message));
+            pthread_mutex_unlock(&g_array_mutex);
             continue;
         }
 
-        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
-        free((void *) msg_buffer);
+#ifdef TCP_ONLY
+        zmq_send(radio, msg_buffer, strlen(msg_buffer), 0);
 
+        // Check if the message was sent correctly
+        rc = zmq_recv(radio, message, sizeof(message), 0);
+#else
+        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+#endif
+
+        // Free msg_buffer after It's been used
+        free((void *) msg_buffer);
 
         if (rc == -1) {
             printf("Error in sending message\n");
+            release_element(msg, sizeof(Message));
             pthread_mutex_unlock(&g_array_mutex);
             break;
         }
+
 
         // -------------------------------------------------------------------------------------------------------------
 
@@ -210,9 +233,15 @@ void client_thread(void *thread_id) {
             logger(LOG_LEVEL_INFO, "Sent %d messages with Thread %d", count_msg, thread_num);
         }
         count_msg++;
+
         release_element(msg, sizeof(Message));
 
+
         pthread_mutex_unlock(&g_array_mutex);
+
+#ifndef QOS_TEST
+        try_reconnect(g_shared_context, &radio, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
+#endif
 
         // Random sleep from 0 to 10ms
         rand_sleep(0, 10);
@@ -225,12 +254,12 @@ void client_thread(void *thread_id) {
 
     // Release the resources
     zmq_close(radio);
-    logger(LOG_LEVEL_DEBUG, "Thread %d finished", thread_num);
+    logger(LOG_LEVEL_DEBUG, "***Exiting client thread %d.", thread_num);
 }
 
 int main(void) {
+    sleep(3);   // Wait for the server to start
 
-    sleep(3);    // Wait for server to start
     printf("Client started\n");
 
     // Create a single context for the entire application
@@ -330,9 +359,11 @@ int main(void) {
     delete_phi_accrual_detector(g_detector);
     logger(LOG_LEVEL_INFO, "Released configuration");
 
-    check_for_leaks();  // Check for memory leaks
+//    check_for_leaks();  // Check for memory leaks
 
     return 0;
 }
+
+
 
 

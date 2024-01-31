@@ -93,11 +93,11 @@ function(target_link_libraries_realmq target)
 endfunction()
 
 # Executables
-add_executable(realmq_client src/realmq_client.c ${SOURCE_FILES})
-add_executable(realmq_server src/realmq_server.c ${SOURCE_FILES})
-
-target_link_libraries_realmq(realmq_client)
-target_link_libraries_realmq(realmq_server)
+#add_executable(realmq_client src/realmq_client.c ${SOURCE_FILES})
+#add_executable(realmq_server src/realmq_server.c ${SOURCE_FILES})
+#
+#target_link_libraries_realmq(realmq_client)
+#target_link_libraries_realmq(realmq_server)
 
 # ------------------------------- Test executables ---------------------------------------
 add_executable(client tests/draft_test/client.c ${SOURCE_FILES})
