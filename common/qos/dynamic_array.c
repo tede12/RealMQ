@@ -112,12 +112,12 @@ void print_dynamic_array(DynamicArray *array) {
     for (size_t i = 0; i < array->size; i++) {
         if (array->element_size == sizeof(Message)) {
             printf("%"
-            PRIu64
-            " %s ", ((Message *) array->data[i])->id, ((Message *) array->data[i])->content);
+                   PRIu64
+                   " %s ", ((Message *) array->data[i])->id, ((Message *) array->data[i])->content);
         } else if (array->element_size == sizeof(uint64_t)) {
             printf("%"
-            PRIu64
-            " ", *(uint64_t *) array->data[i]);
+                   PRIu64
+                   " ", *(uint64_t *) array->data[i]);
         }
     }
     printf("\n");
@@ -355,7 +355,7 @@ const char *marshal_message(const Message *msg) {
     }
 
     // Estimate buffer size needed
-    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) +1;
+    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) + 1;
     char *buffer = malloc(buffer_size);
     if (buffer == NULL) {
         return NULL;
@@ -413,7 +413,7 @@ char *marshal_uint64_array(DynamicArray *array) {
     // Calculate required buffer size
     size_t buffer_size = 0;
     for (size_t i = 0; i < array->size; i++) {
-        buffer_size += snprintf(NULL, 0, "%" PRIu64 "|", *(uint64_t *) array->data[i]) +1;
+        buffer_size += snprintf(NULL, 0, "%" PRIu64 "|", *(uint64_t *) array->data[i]) + 1;
     }
 
     char *buffer = malloc(buffer_size);
@@ -467,9 +467,17 @@ void print_array2(DynamicArray *array, bool print_content) {
     printf("\n");
     for (size_t i = 0; i < array->size; ++i) {
         if (print_content) {
+#ifdef __APPLE__
             printf("array[%zu]: %llu (%s)\n", i, *(uint64_t *) array->data[i], ((Message *) array->data[i])->content);
+#else
+            printf("array[%zu]: %" PRIu64 " (%s)\n", i, *(uint64_t *) array->data[i], ((Message *) array->data[i])->content);
+#endif
         } else {
+#ifdef __APPLE__
             printf("array[%zu]: %llu\n", i, *(uint64_t *) array->data[i]);
+#else
+            printf("array[%zu]: %" PRIu64 "\n", i, *(uint64_t *) array->data[i]);
+#endif
         }
     }
 
@@ -528,16 +536,16 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
             if (radio != NULL && i < first_array->size) {
                 Message *msg = ((Message *) (first_array->data[i]));
                 logger(LOG_LEVEL_INFO, "Resending message with ID: %"
-                PRIu64
-                " and Index: %zu", msg_id, i);
+                                       PRIu64
+                                       " and Index: %zu", msg_id, i);
                 const char *msg_buffer = marshal_message(msg);
                 if (msg_buffer != NULL) {
                     int rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
                     if (rc == -1) {
                         logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %"
-                        PRIu64
-                        " and Index: %zu",
-                                msg_id, i);
+                                                PRIu64
+                                                " and Index: %zu",
+                               msg_id, i);
                         exit(EXIT_FAILURE);
                     }
                     free((void *) msg_buffer);
@@ -550,8 +558,8 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
 
             } else if (i >= first_array->size) {
                 logger(LOG_LEVEL_ERROR, "Lost message with ID: %"
-                PRIu64
-                " and Index: %zu", msg_id, i);
+                                        PRIu64
+                                        " and Index: %zu", msg_id, i);
             }
             // ---------------------------------------------------------------------------------------------------------
 
