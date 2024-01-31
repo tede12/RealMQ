@@ -271,6 +271,8 @@ remove_element_by_id(DynamicArray *array, uint64_t msg_id, bool use_interpolatio
 
         // Decrease the size of the array
         array->size--;
+    } else if (index == -1) {
+        logger(LOG_LEVEL_ERROR, "Failed to find element with ID: %" PRIu64, msg_id);
     }
 
     pthread_mutex_unlock(&msg_ids_mutex);
@@ -484,7 +486,7 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
     int missed_count = 0;
 
     // Iterate backwards to avoid issues when removing elements from the same array
-    for (long long i = (long long) second_array->size - 1; i >= 0; i--) {
+    for (long long i = (long long) first_array->size - 1; i >= 0; i--) {
 
         uint64_t msg_id = ((Message *) (first_array->data[i]))->id;
 
@@ -495,6 +497,8 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
             // get message element
             // printf("Missing message with ID: %" PRIu64 " and Index: %zu\n", msg_id, i);
 
+            // ---------------------------------------------------------------------------------------------------------
+            // In this case I have to resend the message (I do not remove the message if I can't send it)
             if (radio != NULL && i < first_array->size) {
                 Message *msg = ((Message *) (first_array->data[i]));
                 logger(LOG_LEVEL_INFO, "Resending message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
@@ -502,20 +506,22 @@ int diff_from_arrays(DynamicArray *first_array, DynamicArray *second_array, void
                 if (msg_buffer != NULL) {
                     int rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
                     if (rc == -1) {
-                        logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                        logger(LOG_LEVEL_ERROR, "Error in RESEND of message with ID: %" PRIu64 " and Index: %zu",
+                               msg_id, i);
                         exit(EXIT_FAILURE);
                     }
                     free((void *) msg_buffer);
-                    // release_element(msg, sizeof(Message));
                 } else {
                     free((void *) msg_buffer);
                 }
 
                 // Remove the element from the array
                 remove_element_by_id(first_array, msg_id, true, true);
+
             } else if (i >= first_array->size) {
-                // logger(LOG_LEVEL_ERROR, "Lost message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
+                logger(LOG_LEVEL_ERROR, "Lost message with ID: %" PRIu64 " and Index: %zu", msg_id, i);
             }
+            // ---------------------------------------------------------------------------------------------------------
 
         } else {
             // Case of Received message

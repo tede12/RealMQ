@@ -123,6 +123,9 @@ int main(void) {
             continue;
         }
 
+        logger(LOG_LEVEL_DEBUG, "Received message, with ID: %lu", msg->id);
+
+
 #ifdef QOS_TEST
         add_to_dynamic_array(&g_array, &msg->id);
 #endif

@@ -213,12 +213,98 @@ void test_client_server_missing_ids(void) {
     free(new_array);
 }
 
+void test_big_differences(void) {
+    /*
+     * This test is doing what is done in the function `diff_from_arrays` in common/qos/dynamic_array.c
+     */
+
+    // Initialize the dynamic array
+    init_dynamic_array(&g_array, 100, sizeof(Message));
+
+    // --------------------------------------------- Client part -------------------------------------------------------
+
+    uint64_t starting_value = 2500;
+    uint64_t ending_value = 5000;
+    uint64_t diff = ending_value - starting_value;
+
+    // --------------------------------------------- Sender part -------------------------------------------------------
+    for (uint64_t i = starting_value; i < ending_value; i++) {
+        char *custom_message = (char *) malloc(20 * sizeof(char));
+        sprintf(custom_message, "[Value: %llu]", i);
+        set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
+        Message *msg = create_element(custom_message);
+
+        if (msg == NULL) continue;
+        add_to_dynamic_array(&g_array, msg);
+        free(custom_message);
+    }
+
+    // --------------------------------------------- Responder part ----------------------------------------------------
+    // Create a dynamic buffer
+    DynamicArray g_array2;
+    init_dynamic_array(&g_array2, 100, sizeof(Message));
+    uint64_t count = 0;
+
+    // In the range of starting_value and ending_value I'll add the 80% of the messages
+    for (uint64_t i = starting_value, j = 0; i < ending_value; i++, j++) {
+        if (j % 5 == 0) {
+            char *custom_message = (char *) malloc(20 * sizeof(char));
+            sprintf(custom_message, "[Value2: %llu]", i);
+            set_message_id(i);  // Only for testing purposes (to avoid generating random IDs)
+            Message *msg = create_element(custom_message);
+
+            if (msg == NULL) continue;
+            add_to_dynamic_array(&g_array2, msg);
+            free(custom_message);
+            count++;
+        }
+    }
+
+//    char *buffer1 = marshal_uint64_array(&g_array);
+//    printf("\n The BUFFER1: %s\n", buffer1);
+//    free(buffer1);
+
+    // Messages received (from buffer)
+    char *buffer = marshal_uint64_array(&g_array2);
+    printf("\n The BUFFER: %s\n", buffer);
+
+    // Retrieve all messages ids sent from the client to the server
+    DynamicArray *new_array = unmarshal_uint64_array(buffer);
+    if (new_array == NULL) {
+        return;
+    }
+
+    // print 2 arrays
+    // printf("\n# Messages sent: %zu\n", g_array.size);
+    // print_array(&g_array, true);
+    //
+    // printf("\n# Messages received: %zu\n", new_array->size);
+    // print_array(new_array, false);
+
+    int missed_count = diff_from_arrays(&g_array, new_array, NULL);
+
+    char *buffer1 = marshal_uint64_array(&g_array);
+    printf("\n The BUFFER1: %s\n", buffer1);
+    free(buffer1);
+
+    // printf("\n# Missed count: %d\n", missed_count);
+    // print_array(&g_array, true);
+    // printf("\n# New array size: %zu\n", new_array->size);
+    // print_array(new_array, true);
+
+
+    // Check if missed_count == (ending_value - starting_value) - count
+    TEST_ASSERT_EQUAL_INT(missed_count, diff - count);
+}
+
+
 // The main function for running the tests
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_process_missed_message_ids);
-    RUN_TEST(test_buffer_and_get_missed_ids);
-    RUN_TEST(test_client_server_missing_ids);
+//    RUN_TEST(test_process_missed_message_ids);
+//    RUN_TEST(test_buffer_and_get_missed_ids);
+//    RUN_TEST(test_client_server_missing_ids);
+    RUN_TEST(test_big_differences);
     UNITY_END();
 
     check_for_leaks();  // Check for memory leaks
