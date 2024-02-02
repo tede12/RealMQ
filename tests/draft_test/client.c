@@ -11,11 +11,12 @@
 #include "core/config.h"
 #include "qos/accrual_detector.h"
 #include "qos/dynamic_array.h"
-//#include "utils/memory_leak_detector.h"
+// #include "utils/memory_leak_detector.h"
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
 #include "string_manip.h"
 
-#define QOS_TEST
+#define QOS_ENABLE
+//#define TCP_ONLY
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
@@ -30,7 +31,7 @@ pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t g_array_mutex = PTHREAD_MUTEX_INITIALIZER;
 // =====================================================================================================================
 
-
+#ifdef QOS_ENABLE
 void *responder_thread(void *arg) {
     void *socket = (void *) arg;
     while (true) {
@@ -44,7 +45,7 @@ void *responder_thread(void *arg) {
             break;
         }
 
-        printf("Buffer: %s\n", buffer);
+        // printf("Buffer: %s\n", buffer);
 
         // Retrieve all messages ids sent from the client to the server
         DynamicArray *new_array = unmarshal_uint64_array(buffer);
@@ -75,6 +76,7 @@ void *responder_thread(void *arg) {
     logger(LOG_LEVEL_DEBUG, "Responder thread exiting");
     return NULL;
 }
+#endif
 
 
 void client_thread(void *thread_id) {
@@ -108,7 +110,7 @@ void client_thread(void *thread_id) {
 
     int count_msg = 0;
 
-#ifdef QOS_TEST
+#ifdef QOS_ENABLE
     // Send the first heartbeat
     send_heartbeat(NULL, NULL, true);
 #endif
@@ -119,7 +121,7 @@ void client_thread(void *thread_id) {
         // Only used for STOPPING thread
         if (count_msg == config.num_messages) {
 
-#ifdef QOS_TEST
+#ifdef QOS_ENABLE
             // Before sending the STOP message, wait until the g_array is empty (all messages are sent)
             while (true) {
                 // Wait until g_array is empty
@@ -131,7 +133,7 @@ void client_thread(void *thread_id) {
                 // Send a heartbeat message (for flushing the messages)
                 send_heartbeat(radio, get_group(MAIN_GROUP), true);
 
-                logger(LOG_LEVEL_INFO, "[*stop*] Waiting for g_array to be empty (size: %d)", g_array.size);
+                // logger(LOG_LEVEL_INFO, "[*stop*] Waiting for g_array to be empty (size: %d)", g_array.size);
 
                 pthread_mutex_unlock(&g_array_mutex);
                 sleep(1);
@@ -140,7 +142,11 @@ void client_thread(void *thread_id) {
             // Send STOP message
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
+#ifndef TCP_ONLY
                 zmq_send_group(radio, "GRP", "STOP", 0);
+#else
+                zmq_send(radio, "STOP", 4, 0);
+#endif
                 sleep(1);
                 logger(LOG_LEVEL_INFO, "Sent STOP message");
                 handle_interrupt(0);
@@ -148,6 +154,7 @@ void client_thread(void *thread_id) {
             break;
         }
 
+#ifdef QOS_ENABLE
         // ----------------------------------------- Send Message ------------------------------------------------------
         // Before sending a message, I check if the responder already finished sending ACKs for the previous messages
         // If not, I wait until the responder finishes sending ACKs, this prevents for sending twice the same message
@@ -156,7 +163,7 @@ void client_thread(void *thread_id) {
         int try_lock_result = pthread_mutex_trylock(&g_array_mutex);
         if (try_lock_result == EBUSY) {
             // The mutex was locked by the responder thread
-            logger(LOG_LEVEL_WARN, "[client] Waiting for g_array to be empty (size: %d)", g_array.size);
+            // logger(LOG_LEVEL_WARN, "[client] Waiting for g_array to be empty (size: %d)", g_array.size);
             continue;
 
         } else if (try_lock_result == 0) {
@@ -169,7 +176,6 @@ void client_thread(void *thread_id) {
             continue;
         }
 
-#ifdef QOS_TEST
         // ----------------------------------------- PACKET DETECTION --------------------------------------------------
         // Send a heartbeat before starting to send messages
         send_heartbeat(radio, get_group(MAIN_GROUP), false);
@@ -192,10 +198,9 @@ void client_thread(void *thread_id) {
             continue;
         }
 
-#ifdef QOS_TEST
+#ifdef QOS_ENABLE
         add_to_dynamic_array(&g_array, msg);
 #endif
-
         // logger(LOG_LEVEL_DEBUG, "Sending message with ID: %" PRIu64, msg->id);
 
         // ----------------------------------------- Send message to server --------------------------------------------
@@ -208,10 +213,11 @@ void client_thread(void *thread_id) {
         }
 
 #ifdef TCP_ONLY
-        zmq_send(radio, msg_buffer, strlen(msg_buffer), 0);
+        rc = zmq_send(radio, msg_buffer, strlen(msg_buffer), 0);
 
         // Check if the message was sent correctly
-        rc = zmq_recv(radio, message, sizeof(message), 0);
+        zmq_recv(radio, (void *) msg_buffer, sizeof(msg_buffer), 0);
+//        zmq_receive(radio, message, sizeof(message), 0);
 #else
         rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
 #endif
@@ -226,7 +232,6 @@ void client_thread(void *thread_id) {
             break;
         }
 
-
         // -------------------------------------------------------------------------------------------------------------
 
         if (count_msg % 1000 == 0 && count_msg != 0) {
@@ -239,23 +244,26 @@ void client_thread(void *thread_id) {
 
         pthread_mutex_unlock(&g_array_mutex);
 
-#ifndef QOS_TEST
+#ifndef QOS_ENABLE
         try_reconnect(g_shared_context, &radio, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
 #endif
 
         // Random sleep from 0 to 10ms
-        rand_sleep(0, 10);
+        rand_sleep(0, 1);
     }
 
-    // Add count_msg to g_count_msg
+// Add count_msg to g_count_msg
     pthread_mutex_lock(&g_count_msg_mutex);
-    g_count_msg += count_msg;
+    g_count_msg +=
+            count_msg;
     pthread_mutex_unlock(&g_count_msg_mutex);
 
-    // Release the resources
+// Release the resources
     zmq_close(radio);
-    logger(LOG_LEVEL_DEBUG, "***Exiting client thread %d.", thread_num);
+    logger(LOG_LEVEL_DEBUG,
+           "***Exiting client thread %d.", thread_num);
 }
+
 
 int main(void) {
     sleep(3);   // Wait for the server to start
@@ -287,6 +295,7 @@ int main(void) {
     // Initialize the dynamic array
     init_dynamic_array(&g_array, 100000, sizeof(Message));
 
+#ifdef QOS_ENABLE
     // Load the configuration for the failure detector
     phi_accrual_detector detector_config = {
             .threshold = 6,
@@ -300,6 +309,7 @@ int main(void) {
     // Initialize the failure detector
     init_phi_accrual_detector(&detector_config);
 
+
     void *dish = create_socket(
             g_shared_context,
             ZMQ_DISH,
@@ -307,6 +317,8 @@ int main(void) {
             config.signal_msg_timeout,
             get_group(RESPONDER_GROUP)
     );
+
+
 
     // Used only for sending missed messages
     g_radio = create_socket(
@@ -316,13 +328,16 @@ int main(void) {
             config.signal_msg_timeout,
             NULL
     );
+#endif
 
     timespec start_time = get_current_time();
     logger(LOG_LEVEL_DEBUG, "Start Time: %.3f", get_current_time_value(&start_time));
 
     // ============================================= Threads Part ======================================================
+#ifdef QOS_ENABLE
     pthread_t responder;
     pthread_create(&responder, NULL, responder_thread, dish);
+#endif
 
     // Use threads to send messages
     pthread_t clients[config.num_threads];
@@ -337,15 +352,19 @@ int main(void) {
         pthread_join(clients[i], NULL);
     }
 
+#ifdef QOS_ENABLE
     // Wait for the server thread to finish
     pthread_join(responder, NULL);
+#endif
     // ============================================= End Threads Part ==================================================
 
     logger(LOG_LEVEL_DEBUG, "Execution Time: %.3f ms (+ %d ms of sleep starting time)",
            get_elapsed_time(start_time, NULL), config.server_action->sleep_starting_time);
 
+#ifdef QOS_ENABLE
     zmq_close(dish);
     zmq_close(g_radio);
+#endif
     logger(LOG_LEVEL_INFO, "Closed DISH socket");
     zmq_ctx_destroy(g_shared_context);
     logger(LOG_LEVEL_INFO, "Destroyed context");
@@ -356,7 +375,9 @@ int main(void) {
     // Release the resources
     release_config();
     release_dynamic_array(&g_array);
+#ifdef QOS_ENABLE
     delete_phi_accrual_detector(g_detector);
+#endif
     logger(LOG_LEVEL_INFO, "Released configuration");
 
 //    check_for_leaks();  // Check for memory leaks

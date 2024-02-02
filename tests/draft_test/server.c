@@ -12,7 +12,7 @@
 #include "qos/buffer_segments.h"
 #include "utils/time_utils.h"
 
-#define QOS_TEST
+#define QOS_ENABLE
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
@@ -26,6 +26,7 @@ long long count_msg = 0;
 // =====================================================================================================================
 
 
+#ifdef QOS_ENABLE
 
 // Function for sending ACKs to the client
 void send_ids(void *radio) {
@@ -34,7 +35,7 @@ void send_ids(void *radio) {
 
     // Send segments with max size of MAX_SEGMENT_SIZE
     for (size_t i = 0; i < segments_array.count; i++) {
-        printf("Sending segment %s\n", segments_array.segments[i].data);
+        // printf("Sending segment %s\n", segments_array.segments[i].data);
 
         // Send the buffer with the IDs
         zmq_send_group(
@@ -62,6 +63,8 @@ void send_ids(void *radio) {
     clean_all_elements(&g_array);
 }
 
+#endif
+
 // Function for handling periodic statistics saving
 void *stats_saver_thread(void *args) {
     while (!interrupted) {
@@ -85,17 +88,21 @@ void *server_thread(void *args) {
             continue;
         }
 
+        // printf("Received message: %s\n", buffer);
+
         // If message start with "STOP" then stop the server
         if (strncmp(buffer, "STOP", 4) == 0) {
             logger(LOG_LEVEL_INFO, "Received STOP signal");
+#ifdef QOS_ENABLE
             send_ids(g_radio);    // Notify last IDs
+#endif
             break;
         } else if (strncmp(buffer, "START", 5) == 0) {
             // Needed for the first message for TCP (slow joiner syndrome)
             logger(LOG_LEVEL_INFO, "Received START signal");
             continue;
         } else if (strncmp(buffer, "HB", 2) == 0) {
-#ifdef QOS_TEST
+#ifdef QOS_ENABLE
             // UDP Packet Detection
             send_ids(g_radio);
 #endif
@@ -112,8 +119,7 @@ void *server_thread(void *args) {
 
         // logger(LOG_LEVEL_DEBUG, "Received message, with ID: %lu", msg->id);
 
-
-#ifdef QOS_TEST
+#ifdef QOS_ENABLE
         add_to_dynamic_array(&g_array, &msg->id);
 #endif
         pthread_mutex_lock(&g_count_msg_mutex);
@@ -171,6 +177,7 @@ int main(void) {
             get_group(MAIN_GROUP)
     );
 
+#ifdef QOS_ENABLE
     // Responder socket
     g_radio = create_socket(
             g_shared_context, ZMQ_RADIO,
@@ -178,6 +185,7 @@ int main(void) {
             config.signal_msg_timeout,
             NULL
     );
+#endif
 
     // ============================================= Threads Part ======================================================
 
@@ -201,7 +209,6 @@ int main(void) {
     // Save final statistics to a file
     save_stats_to_file(&g_json_messages);
 
-
     // Wait a bit before sending the stop signal to the responder thread (in client)
     sleep(3);
     zmq_send_group(g_radio, get_group(RESPONDER_GROUP), "STOP", 0);
@@ -210,7 +217,9 @@ int main(void) {
     logger(LOG_LEVEL_INFO2, "Max received message ID: %lld", received_messages);
 
     // Release resources
+#ifdef QOS_ENABLE
     zmq_close(g_radio);
+#endif
     zmq_close(g_dish);
     zmq_ctx_destroy(g_shared_context);
 
