@@ -180,7 +180,7 @@ void test_client_server_missing_ids(void) {
         Message *msg = create_element(custom_message);
         if (msg == NULL) continue;
         // fake timeout or will fail next tests
-        msg->timestamp = msg->timestamp - 6000; // make it old
+        msg->timestamp = msg->timestamp - 6000 * 1000; // make it old
         add_to_dynamic_array(&g_array, msg);
         free(custom_message);
     }
@@ -215,10 +215,10 @@ void test_client_server_missing_ids(void) {
     // print_array(new_array, true);
 
 
-    TEST_ASSERT_EQUAL_INT(missed_count, 5);
+    TEST_ASSERT_EQUAL_INT(5, missed_count);
 
     // Check how many messages are in the array
-    TEST_ASSERT_EQUAL_INT(g_array.size, 5);
+    TEST_ASSERT_EQUAL_INT(5, g_array.size);
 
     // Release the resources
     release_dynamic_array(new_array);
@@ -253,7 +253,7 @@ void test_big_differences(void) {
         if (msg == NULL) continue;
 
         // fake timeout or will fail next tests
-        msg->timestamp = msg->timestamp - 6000; // make it old
+        msg->timestamp = msg->timestamp - 6000 * 1000; // make it old
         add_to_dynamic_array(&g_array, msg);
         free(custom_message);
     }
@@ -300,7 +300,7 @@ void test_big_differences(void) {
 
 
     // Check if missed_count == (ending_value - starting_value) - count
-    TEST_ASSERT_EQUAL_INT(missed_count, diff - count);
+    TEST_ASSERT_EQUAL_INT(diff - count, missed_count);
 }
 
 
