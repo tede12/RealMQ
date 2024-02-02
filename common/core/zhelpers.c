@@ -116,18 +116,19 @@ void *create_socket(void *context, int socket_type, const char *connection, int 
     switch (get_protocol_type_from_socket_type(socket_type)) {
         case TCP:
             if (socket_type == get_zmq_type(CLIENT)) {
-                // 2. Connect is used for sending messages
-                rc = zmq_connect(socket, connection);
+                // 2. Bind is used for sending messages
+                rc = zmq_bind(socket, connection);
+
                 if (rc != 0) {
-                    logger(LOG_LEVEL_ERROR, "Failed to [CONNECT] %s", common_msg);
+                    logger(LOG_LEVEL_ERROR, "Failed to [BIND] %s", common_msg);
                     assert(rc == 0);
                 }
 
             } else if (socket_type == get_zmq_type(SERVER)) {
-                // 2. Bind is used for receiving messages
-                rc = zmq_bind(socket, connection);
+                // 2. Connect is used for receiving messages
+                rc = zmq_connect(socket, connection);
                 if (rc != 0) {
-                    logger(LOG_LEVEL_ERROR, "Failed to [BIND] %s", common_msg);
+                    logger(LOG_LEVEL_ERROR, "Failed to [CONNECT] %s", common_msg);
                     assert(rc == 0);
                 }
                 // 3. Add option
