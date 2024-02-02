@@ -5,10 +5,10 @@ general:
   protocol: "udp"
   main_address: 127.0.0.1:5555
   responder_address: 127.0.0.1:5556
-  num_threads: 2
+  num_threads: 1
 
   # num_messages: total number of messages that will be sent by the client
-  num_messages: 50
+  num_messages: 10000
 
   # message_size: size of the message in bytes that will be sent by the client (random ascii, avoid caching)
   message_size: 64

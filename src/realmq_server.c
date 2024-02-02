@@ -1,221 +1,234 @@
-//#include <string.h>
-//#include <pthread.h>
-//#include <zmq.h>
-//#include <time.h>
-//#include <unistd.h> // for sleep function
-//#include <signal.h>
-//#include <json-c/json.h>
-//#include "utils/utils.h"
-//#include "core/config.h"
-//#include "core/zhelpers.h"
-//#include "core/logger.h"
-//#include "utils/time_utils.h"
-//#include "utils/fs_utils.h"
-//#include "utils/memory_leak_detector.h"
-//
-//// ---------------------------------------- Global configuration -------------------------------------------------------
-//Logger server_logger;
-//
-//// Variables for periodic statistics saving
-//json_object *json_messages = NULL; // Added to store all messages
-//// ---------------------------------------------------------------------------------------------------------------------
-//
-//// Function for handling received messages
-//void handle_message(const char *message) {
-//    // Implement logic for handling received messages
-//    // In this example, we are just printing the message for demonstration purposes
-////    logger(LOG_LEVEL_INFO, "Received message: %s", message);
-//}
-//
-//// Function for processing received JSON message and updating statistics
-//void process_json_message(const char *json_str, double recv_time) {
-//    // "{ \"message\": \"Thread 20 - Message 400\", \"send_time\": 358913413 }"
-//    json_object *json_msg = json_tokener_parse(json_str);
-//    if (json_msg) {
-//        // Add the message to the statistical data
-//
-//        // Create a JSON object for the message
-//        json_object *jobj = json_object_new_object();
-//        json_object_object_add(jobj, "id", json_object_object_get(json_msg, "id"));
-////        json_object_object_add(jobj, "message", json_object_object_get(json_msg, "message"));
-//        json_object_object_add(jobj, "send_time", json_object_object_get(json_msg, "send_time"));
-//        json_object_object_add(jobj, "recv_time", json_object_new_double(recv_time));
-//
-//        pthread_mutex_lock(&json_mutex);    // Import for not corrupting the json_messages array during the saving
-//        json_object_array_add(json_messages, jobj);
-//        pthread_mutex_unlock(&json_mutex);
-//    }
-//}
-//
-//// Function executed by the server
-//void *server_thread(void *args) {
-//    signal(SIGINT, handle_interrupt); // Register the interruption handling function
-//
-//    void *context = create_context();
-//    void *receiver = create_socket(
-//            context, get_zmq_type(SERVER),
-//            get_address(MAIN_ADDRESS),
-//            config.signal_msg_timeout,
-//            get_group(MAIN_GROUP)
-//    );
-//
-//#ifdef REALMQ_VERSION
-//    // Responder socket
-//    void *context2 = create_context();
-//    void *responder = create_socket(
-//            context2, ZMQ_RADIO,
-//            get_address(RESPONDER_ADDRESS),
-//            config.signal_msg_timeout,
-//            NULL
-//    );
-//#endif
-//
-//    // Wait for the specified time before starting to receive messages
-//    s_sleep(config.server_action->sleep_starting_time);
-//
-//    int messages_received = 0; // Counter for received messages
-//
-//    while (!interrupted) {
-//        char message[config.message_size + 64];
-//        int size = zmq_recv(receiver, message, sizeof(message), 0); // zmq_recv will return after timeout if no message
-//        if (size == -1 && errno == EAGAIN) {
-//            // In this case no message received or timeout occurred
-//            continue;
-//        }
-//        double recv_time = get_current_time_value(NULL);
-//
-//#ifdef QOS_RETRANSMISSION
-//        // Check if prefix of the message is "HB" (heartbeat)
-//        if (strncmp(message, "HB", 2) == 0) {
-//            // Heartbeat received
-//            logger(LOG_LEVEL_INFO, "Heartbeat received");
-//
-//            // last id received
-//            char *last_id = get_message_id(-1);
-//            process_message_ids(responder, last_id);
-//            continue;
-//        }
-//#endif
-//
-//        // Process the received message
-//        handle_message(message);
-//
-//        // Process the received JSON message and update statistics
-//        process_json_message(message, recv_time);
-//
-//        // Increment the received messages counter
-//        messages_received++;
-//
-//        // log every 100000 messages
-//        if (messages_received % 100000 == 0) {
-//            logger(LOG_LEVEL_INFO, "Received messages: %d", messages_received);
-//        }
-//
-//        // Extract the ID from the message
-//        json_object *json_msg = json_tokener_parse(message);
-//        if (json_msg) {
-//            // This part send with the socket RESPONDER back the ID of the message to the client
-//            json_object *id_obj;
-//            if (json_object_object_get_ex(json_msg, "id", &id_obj)) {
-//                const char *id_str = json_object_get_string(id_obj);
-//
-//#ifdef QOS_RETRANSMISSION
-//                // Store the ID
-//                add_message_id(id_str);
-//#endif
-//
-//#ifndef REALMQ_VERSION
-////                // Send the ID back to the client
-////                int rc = zmq_send(receiver, id_str, strlen(id_str), 0);
-////                if (rc == -1) {
-////                    logger(LOG_LEVEL_ERROR, "Error in sending message");
-////                }
-//#endif
-//            }
-//
-//
-//            json_object_put(json_msg);  // free json object memory
-//        }
-//    }
-//
-//    logger(LOG_LEVEL_DEBUG, "Received messages: %d", messages_received);
-//
-//    zmq_close(receiver);
-//#ifdef REALMQ_VERSION
-//    zmq_close(responder);
-//#endif
-//    zmq_ctx_destroy(context);
-//
-//    if (interrupted)
-//        logger(LOG_LEVEL_DEBUG, "***Exiting server thread.");
-//    return NULL;
-//}
-//
-//
-//// Function for handling periodic statistics saving
-//void *stats_saver_thread(void *args) {
-//    while (!interrupted) {
-//        // Wait for the specified time before the next save
-//        sleep(config.save_interval_seconds);
-//
-//        // Save statistics to a file
-//        save_stats_to_file(&json_messages);
-//    }
-//    if (interrupted)
-//        logger(LOG_LEVEL_DEBUG, "***Exiting stats saver thread.");
-//    return NULL;
-//}
-//
-//int main() {
-//    // Load the configuration
-//    logConfig logger_config = {
-//            .show_timestamp = 1,
-//            .show_logger_name = 1,
-//            .show_thread_id = 1,
-//            .log_to_console = 1,
-//            .log_level = LOG_LEVEL_INFO
-//    };
-//
-//    Logger_init("realmq_sever", &logger_config, &server_logger);
-//
-//
-//    if (read_config("../config.yaml") != 0) {
-//        logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
-//        return 1;
-//    }
-//
-//    // Print configuration
-//    print_configuration();
-//
-//    // Initialize JSON statistics
-//    json_messages = json_object_new_array();
-//
-//    // Initialize the thread for periodic statistics saving
-//    pthread_t stats_saver;
-//    pthread_create(&stats_saver, NULL, stats_saver_thread, NULL);
-//
-//    // Initialize the server thread
-//    pthread_t server;
-//    pthread_create(&server, NULL, server_thread, NULL);
-//
-//    // Wait for the server thread to finish
-//    pthread_join(server, NULL);
-//
-//    // Terminate the thread for periodic statistics saving
-//    pthread_cancel(stats_saver);
-//    pthread_join(stats_saver, NULL);
-//
-//    // Save final statistics to a file
-//    save_stats_to_file(&json_messages);
-//
-//    // Deallocate json_messages before exiting
-//    json_object_put(json_messages);
-//
-//    // Release the configuration
-//    release_config();
-//    release_logger();
-//
-//    check_for_leaks();  // Check for memory leaks
-//
-//    return 0;
-//}
+#include <zmq.h>
+#include <string.h>
+#include <stdio.h>
+#include <json_object.h>
+#include "utils/utils.h"
+#include "utils/fs_utils.h"
+#include "core/config.h"
+#include "core/logger.h"
+#include "utils/memory_leak_detector.h"
+#include "core/zhelpers.h"
+#include "qos/dynamic_array.h"
+#include "qos/buffer_segments.h"
+#include "utils/time_utils.h"
+
+#define QOS_ENABLE
+
+// ============================================= Global configuration ==================================================
+void *g_shared_context;
+void *g_dish;
+void *g_radio;
+pthread_mutex_t g_count_msg_mutex = PTHREAD_MUTEX_INITIALIZER;
+Logger server_logger;
+long long received_messages = 0;
+long long count_msg = 0;
+#define MAX(a, b) (((a)>(b))?(a):(b))
+// =====================================================================================================================
+
+
+#ifdef QOS_ENABLE
+
+// Function for sending ACKs to the client
+void send_ids(void *radio) {
+    // Create a buffer with the IDs
+    BufferSegmentArray segments_array = marshal_and_split(&g_array);
+
+    // Send segments with max size of MAX_SEGMENT_SIZE
+    for (size_t i = 0; i < segments_array.count; i++) {
+        // printf("Sending segment %s\n", segments_array.segments[i].data);
+
+        // Send the buffer with the IDs
+        zmq_send_group(
+                radio,
+                get_group(RESPONDER_GROUP),
+                segments_array.segments[i].data,
+                0
+        );
+    }
+
+    // Send a wakeup message
+    if (segments_array.count == 0) {
+        // Send an empty message to notify the client that there are no more IDs (needed for cleaning the g_array)
+        zmq_send_group(
+                radio,
+                get_group(RESPONDER_GROUP),
+                "WAKEUP",
+                0
+        );
+    }
+
+    free_segment_array(&segments_array);
+
+    // Clean the array of IDs
+    clean_all_elements(&g_array);
+}
+
+#endif
+
+// Function for handling periodic statistics saving
+void *stats_saver_thread(void *args) {
+    while (!interrupted) {
+        // Wait for the specified time before the next save
+        sleep(config.save_interval_seconds);
+
+        // Save statistics to a file
+        save_stats_to_file(&g_json_messages);
+    }
+    logger(LOG_LEVEL_DEBUG, "***Exiting stats saver thread.");
+    return NULL;
+}
+
+void *server_thread(void *args) {
+    // Wait for the specified time before starting to receive messages
+    s_sleep(config.server_action->sleep_starting_time);
+
+    while (!interrupted) {
+        char buffer[1024];
+        if (zmq_receive(g_dish, buffer, sizeof(buffer), 0) == -1) {
+            continue;
+        }
+
+        // printf("Received message: %s\n", buffer);
+
+        // If message start with "STOP" then stop the server
+        if (strncmp(buffer, "STOP", 4) == 0) {
+            logger(LOG_LEVEL_INFO, "Received STOP signal");
+#ifdef QOS_ENABLE
+            send_ids(g_radio);    // Notify last IDs
+#endif
+            break;
+        } else if (strncmp(buffer, "START", 5) == 0) {
+            // Needed for the first message for TCP (slow joiner syndrome)
+            logger(LOG_LEVEL_INFO, "Received START signal");
+            continue;
+        } else if (strncmp(buffer, "HB", 2) == 0) {
+#ifdef QOS_ENABLE
+            // UDP Packet Detection
+            send_ids(g_radio);
+#endif
+            continue;
+        }
+
+        Message *msg = unmarshal_message(buffer);
+        if (msg == NULL) {
+            continue;
+        }
+
+        // Process the message (for statistics)
+        process_json_message(msg);
+
+        // logger(LOG_LEVEL_DEBUG, "Received message, with ID: %lu", msg->id);
+
+#ifdef QOS_ENABLE
+        add_to_dynamic_array(&g_array, &msg->id);
+#endif
+        pthread_mutex_lock(&g_count_msg_mutex);
+        count_msg++;
+        // keep max from received messages and msg->id
+        received_messages = MAX(received_messages, msg->id);
+        pthread_mutex_unlock(&g_count_msg_mutex);
+
+        release_element(msg, sizeof(Message));
+
+        if (count_msg % 1000 == 0 && count_msg != 0) {
+            logger(LOG_LEVEL_INFO, "Received %d messages", count_msg);
+        }
+    }
+    logger(LOG_LEVEL_DEBUG, "***Exiting server thread.");
+}
+
+int main(void) {
+    printf("Server started\n");
+
+    // Create a new dynamic array
+    init_dynamic_array(&g_array, 100000, sizeof(uint64_t));
+
+    // Load the configuration
+    logConfig logger_config = {
+            .show_timestamp = 1,
+            .show_logger_name = 1,
+            .show_thread_id = 1,
+            .log_to_console = 1,
+            .log_level = LOG_LEVEL_INFO
+    };
+
+    Logger_init("realmq_sever", &logger_config, &server_logger);
+
+    if (read_config("../config.yaml") != 0) {
+        logger(LOG_LEVEL_ERROR, "Failed to read config.yaml");
+        return 1;
+    }
+
+    // Print configuration
+    print_configuration();
+
+    // Initialize JSON statistics
+    init_json_messages();
+
+
+    // Create a new context
+    g_shared_context = create_context();
+
+    // Dish socket
+    g_dish = create_socket(
+            g_shared_context, get_zmq_type(SERVER),
+            get_address(MAIN_ADDRESS),
+            config.signal_msg_timeout,
+            get_group(MAIN_GROUP)
+    );
+
+#ifdef QOS_ENABLE
+    // Responder socket
+    g_radio = create_socket(
+            g_shared_context, ZMQ_RADIO,
+            get_address(RESPONDER_ADDRESS),
+            config.signal_msg_timeout,
+            NULL
+    );
+#endif
+
+    // ============================================= Threads Part ======================================================
+
+    // Initialize the thread for periodic statistics saving
+    pthread_t stats_saver;
+    pthread_create(&stats_saver, NULL, stats_saver_thread, NULL);
+
+    // Initialize the server thread
+    pthread_t server;
+    pthread_create(&server, NULL, server_thread, NULL);
+
+    // Wait for the server thread to finish
+    pthread_join(server, NULL);
+
+    // Terminate the thread for periodic statistics saving
+    pthread_cancel(stats_saver);
+    pthread_join(stats_saver, NULL);
+
+    // ============================================= End Threads Part ==================================================
+
+    // Save final statistics to a file
+    save_stats_to_file(&g_json_messages);
+
+    // Wait a bit before sending the stop signal to the responder thread (in client)
+    sleep(3);
+    zmq_send_group(g_radio, get_group(RESPONDER_GROUP), "STOP", 0);
+
+    logger(LOG_LEVEL_INFO2, "Total received messages: %d", count_msg);
+    logger(LOG_LEVEL_INFO2, "Max received message ID: %lld", received_messages);
+
+    // Release resources
+#ifdef QOS_ENABLE
+    zmq_close(g_radio);
+#endif
+    zmq_close(g_dish);
+    zmq_ctx_destroy(g_shared_context);
+
+    release_dynamic_array(&g_array);
+    release_config();
+    release_date_time();
+    release_json_messages();
+
+    check_for_leaks(); // Check for memory leaks
+
+    return 0;
+}
