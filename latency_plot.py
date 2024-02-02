@@ -76,7 +76,7 @@ def plot_data(file):
 
     # ------------------------------------------------ Little inset plot -----------------------------------------------
     # Add an inset plot in the top left
-    left, bottom, width, height = [0.125, 0.7, 0.2, 0.2]  # coordinates for the inset axes
+    left, bottom, width, height = [0.3, 0.7, 0.2, 0.2]  # coordinates for the inset axes
     ax_inset = fig.add_axes([left, bottom, width, height])
 
     # Plot the 'diff' vs the number of messages on the inset plot

@@ -161,7 +161,7 @@ void *create_element(const char *content) {
     strncpy(msg->content, content, content_length);
     msg->content[content_length] = '\0'; // Ensure null termination
 
-    msg->timestamp = get_current_timestamp();    // Set the timestamp to the current time
+    msg->timestamp = get_current_time_microseconds();    // Set the timestamp to the current time
 
     return msg;
 }
@@ -354,14 +354,15 @@ const char *marshal_message(const Message *msg) {
         return NULL;
     }
 
-    // Estimate buffer size needed
-    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%s", msg->id, msg->content) + 1;
+    // Estimate buffer size needed, including the timestamp
+    size_t buffer_size = snprintf(NULL, 0, "%" PRIu64 "|%" PRIu64 "|%s", msg->id, msg->timestamp, msg->content) + 1;
     char *buffer = malloc(buffer_size);
     if (buffer == NULL) {
         return NULL;
     }
 
-    snprintf(buffer, buffer_size, "%" PRIu64 "|%s", msg->id, msg->content);
+    // Format the message including the timestamp
+    snprintf(buffer, buffer_size, "%" PRIu64 "|%" PRIu64 "|%s", msg->id, msg->timestamp, msg->content);
     return buffer;
 }
 
@@ -381,24 +382,35 @@ Message *unmarshal_message(const char *buffer) {
         return NULL;
     }
 
-    uint64_t id;
     char *content = strdup(buffer);
-    char *separator = strchr(content, '|');
-    if (separator != NULL) {
-        *separator = '\0';
-        id = strtoull(content, NULL, 10);
-        msg->content = strdup(separator + 1);
+    char *firstSeparator = strchr(content, '|');
+    if (firstSeparator != NULL) {
+        *firstSeparator = '\0';
+        msg->id = strtoull(content, NULL, 10);
+        char *secondSeparator = strchr(firstSeparator + 1, '|');
+        if (secondSeparator != NULL) {
+            *secondSeparator = '\0';
+            msg->timestamp = strtoll(firstSeparator + 1, NULL, 10);
+            msg->content = strdup(secondSeparator + 1);
+        } else {
+            // If there is no second separator, assume it's just id and timestamp
+            msg->timestamp = strtoll(firstSeparator + 1, NULL, 10);
+            msg->content = NULL; // Indicate that there's no content
+        }
     } else {
-        id = strtoull(content, NULL, 10);
-        msg->content = NULL;
+        // If there's no separator, the buffer contains only an id
+        msg->id = strtoull(content, NULL, 10);
+        msg->timestamp = 0; // Indicate that there's no timestamp
+        msg->content = NULL; // Indicate that there's no content
     }
     free(content);
 
-    msg->id = id;
     return msg;
 }
 
-// I want that marshal_uint64_array give me back an array of a struct that contain maximum a char of 1024 because i can't send more than 1024 bytes in a buffer
+// ========================================Marshalling for Buffer Segments=============================================//
+// I want that marshal_uint64_array give me back an array of a struct that contain maximum a char of 1024 because I
+// can't send more than 1024 bytes in a buffer
 
 /**
  * @brief Marshal a uint64_t array into a buffer.
@@ -460,6 +472,8 @@ DynamicArray *unmarshal_uint64_array(const char *buffer) {
     return array;
 }
 
+// ========================================Missed Messages Detection===================================================//
+
 // Only for test purposes (remove in future)
 void print_array2(DynamicArray *array, bool print_content) {
     for (size_t i = 0; i < 50; ++i)
@@ -499,7 +513,7 @@ bool check_message_timeout(DynamicArray *array, uint64_t index, long long timeou
     if (timeout == 0) {
         timeout = 2000;
     }
-    return (get_current_timestamp() - ((Message *) (array->data[index]))->timestamp) > timeout;
+    return (get_current_time_microseconds() - ((Message *) (array->data[index]))->timestamp) / 1000 > timeout;
 }
 
 

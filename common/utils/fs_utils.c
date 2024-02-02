@@ -73,13 +73,15 @@ void save_stats_to_file(json_object **json_messages_ptr) {
         for (unsigned int i = 0; i < array_len; i++) {
             json_object *json_msg = json_object_array_get_idx(json_messages, i);
 
-            double diff = json_object_get_double(json_object_object_get(json_msg, "recv_time")) -
-                          json_object_get_double(json_object_object_get(json_msg, "send_time"));
+            uint64_t send_time = json_object_get_uint64(json_object_object_get(json_msg, "send_time"));
+            uint64_t recv_time = json_object_get_uint64(json_object_object_get(json_msg, "recv_time"));
 
-            diff = diff / 1000000; // Convert from nanoseconds to milliseconds
+            double diff = (double) (recv_time - send_time);
+
+            diff = diff / 1000; // Convert from nanoseconds to milliseconds
 
             if (json_msg) {
-                fprintf(file, "%s,%d,%f\n",
+                fprintf(file, "%s,%d,%.4f\n",
                         json_object_get_string(json_object_object_get(json_msg, "id")),
                         i + 1,
                         diff
@@ -198,7 +200,7 @@ void release_json_messages() {
  * @param recv_time
  */
 void process_json_message(Message *msg) {
-    long long recv_time = get_current_timestamp();
+    long long recv_time = get_current_time_microseconds(); // Get the current time
     // Add the message to the statistical data
 
     // Create a JSON object for the message
