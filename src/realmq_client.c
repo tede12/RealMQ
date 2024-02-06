@@ -15,7 +15,7 @@
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
 #include "string_manip.h"
 
-//#define QOS_ENABLE
+//#define QOS_ENABLE    // Better enable it from the CMakelists.txt
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
@@ -247,7 +247,7 @@ void client_thread(void *thread_id) {
         try_reconnect(g_shared_context, &radio, get_address(MAIN_ADDRESS), get_zmq_type(CLIENT));
 #endif
 
-        // Random sleep from 0 to 10ms
+        // Random sleep from 0 to 1ms
         rand_sleep(0, 1);
     }
 

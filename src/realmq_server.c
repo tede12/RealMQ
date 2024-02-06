@@ -12,7 +12,7 @@
 #include "qos/buffer_segments.h"
 #include "utils/time_utils.h"
 
-//#define QOS_ENABLE
+//#define QOS_ENABLE    // Better enable it from the CMakelists.txt
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
