@@ -346,7 +346,7 @@ void print_configuration() {
     }
 
     char qos_flag[4];  // "yes" or "no" plus null terminator
-#ifdef REALMQ_VERSION
+#ifdef QOS_ENABLE
     snprintf(qos_flag, sizeof(qos_flag), "yes");
 #else
     snprintf(qos_flag, sizeof(qos_flag), "no");

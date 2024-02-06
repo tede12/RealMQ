@@ -1,4 +1,6 @@
 import re
+import sys
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -124,7 +126,10 @@ def generate_plots(df):
 
 
 def main():
-    file_path = 'stats/tegrastats.log'  # log file path
+    try:
+        file_path = f'stats/{sys.argv[1]}.log'
+    except IndexError:
+        file_path = 'stats/tegrastats.log'  # log file path
 
     try:
         data = parse_file(file_path)
@@ -138,3 +143,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+How to save log:
+
+if [ -f tegrastats.log ]; then rm tegrastats.log; fi && tegrastats --interval 200 --logfile ./tegrastats.log
+
+
+"""

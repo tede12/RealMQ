@@ -12,8 +12,7 @@ find_package(Threads REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 # Required for testing DGRAM sockets (UDP) that are not yet supported in stable releases only in draft releases
 add_definitions(-DZMQ_BUILD_DRAFT_API)
-#add_definitions(-DREALMQ_VERSION)       # This is the version of RealMQ with QoS support
-#add_definitions(-DQOS_RETRANSMISSION)    # This is the version of RealMQ with QoS Retransmission support
+#add_definitions(-DQOS_ENABLE)       # This is the version of RealMQ with QoS support
 
 pkg_check_modules(CZMQ REQUIRED libczmq)
 pkg_check_modules(JSON-C REQUIRED json-c)
@@ -81,10 +80,16 @@ include_directories(common)
 
 # Link libraries to executables
 function(target_link_libraries_realmq target)
+    # Extract the linker flags for json-c
+    execute_process(COMMAND pkg-config --libs json-c
+                    OUTPUT_VARIABLE JSON_C_LINK_FLAGS
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
     target_link_libraries(${target}
             ${ZMQ_LIBRARIES}
             ${CZMQ_LIBRARIES}
-            ${JSON-C_LIBRARIES}
+            # ${JSON-C_LIBRARIES}
+            ${JSON_C_LINK_FLAGS} # Use the extracted link flags for json-c
             ${YAML_LIBRARIES}
             ${UUID_LIBRARIES}
             Threads::Threads

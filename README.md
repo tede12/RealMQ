@@ -26,15 +26,14 @@ Here are some of the enhancements made to the library:
 - **Quality of Service (QoS) Settings**: Implemented various QoS levels to evaluate their impact on latency, packet
   loss, and
   real-time communication reliability.
-- **Dynamic Scaling**: Added the ability to dynamically scale the number of threads or processes depending on the
-  machine's
-  workload. This enhancement is critical in measuring its effect on performance and latency.
+- **Dynamic Scaling (future enhancement)**: Add the ability to dynamically scale the number of threads or processes 
+  depending on the machine's workload. This enhancement is critical in measuring its effect on performance and latency.
 
 ## Benchmarks
 
 Performance is assessed using the following benchmarks:
 
-1. **Latency**: A bar chart comparing latency under different workloads (e.g., messages per second). It's crucial to see
+1. **Latency**: A line graph comparing latency under different workloads (e.g., messages per second). It's crucial to see
    how
    latency varies with workload intensity. In the context of real-time systems, understanding and optimizing latency is
    paramount for several reasons:
@@ -80,7 +79,7 @@ Performance is assessed using the following benchmarks:
 
 
 - **UDP** is the protocol used by the real-time version implemented in this project.
-  client and server nodes communicate using UDP sockets.
+  Client and server nodes communicate using UDP sockets.
 
 ### Client-Server Communication
 
@@ -88,11 +87,11 @@ client (publisher) sends messages to the server (subscriber) using a **TCP** or 
 
 - Client threads
     - PUBLISHER socket (`ZMQ_PUB`/`ZMQ_RADIO`) (for sending messages to the server)
-    - RESPONDER socket (`ZMQ_SUB`/`ZMQ_DISH`) (for checking received messages from the server)
-    - TIMEOUT socket (`ZMQ_RCVTIMEO`/`ZMQ_SNDTIMEO`)
+    - RESPONDER socket (`ZMQ_SUB`/`ZMQ_DISH`) (for acknowledging messages from the server)
+      -  
 - Server threads
     - SUBSCRIBER socket (`ZMQ_SUB/ZMQ_DISH`) (for receiving messages from client)
-    - RESPONDER socket (`ZMQ_REP`)
+    - RESPONDER socket (`ZMQ_REP`) (for acknowledging messages from client, only in the case of TCP)
 
 ## QoS Levels Implementation
 
@@ -108,9 +107,8 @@ and reliability.
 
 ### Overview of QoS Levels
 
-One of the pivotal enhancements made in the realm of QoS is the integration of the
-**[Phi Accrual Failure Detector algorithm
-](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector)**.
+One of the pivotal enhancements made in the realm of QoS for the **RealMQ library** is the integration of the
+**[Phi Accrual Failure Detector algorithm](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector)**.
 This algorithm, originally conceived for distributed systems to detect
 node failures, has been ingeniously repurposed in this context to address the issue of packet loss within UDP
 communications.
@@ -187,6 +185,8 @@ of mistake rate and detection time.
 <p align="center">
    <img src="./.github/images/Threshold_Experiments.png" width="70%"/><br/>
 </p>
+
+(Images from the original paper: [The φ Accrual Failure Detector](https://www.researchgate.net/publication/29682135_The_ph_accrual_failure_detector))
 
 ---
 

@@ -15,8 +15,7 @@
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
 #include "string_manip.h"
 
-#define QOS_ENABLE
-//#define TCP_ONLY
+//#define QOS_ENABLE
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
@@ -142,11 +141,12 @@ void client_thread(void *thread_id) {
             // Send STOP message
             for (int i = 0; i < 3; i++) {
                 // Send 3 messages to notify the server that the client has finished sending messages
-#ifndef TCP_ONLY
-                zmq_send_group(radio, "GRP", "STOP", 0);
-#else
-                zmq_send(radio, "STOP", 4, 0);
-#endif
+                if (get_protocol_type() == TCP) {
+
+                    zmq_send_group(radio, "GRP", "STOP", 0);
+                } else {
+                    zmq_send(radio, "STOP", 4, 0);
+                }
                 sleep(1);
                 logger(LOG_LEVEL_INFO, "Sent STOP message");
                 handle_interrupt(0);
@@ -212,15 +212,14 @@ void client_thread(void *thread_id) {
             continue;
         }
 
-#ifdef TCP_ONLY
-        rc = zmq_send(radio, msg_buffer, strlen(msg_buffer), 0);
+        if (get_protocol_type() == TCP) {
+            rc = zmq_send(radio, msg_buffer, strlen(msg_buffer), 0);
 
-        // Check if the message was sent correctly
-        zmq_recv(radio, (void *) msg_buffer, sizeof(msg_buffer), 0);
-//        zmq_receive(radio, message, sizeof(message), 0);
-#else
-        rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
-#endif
+            // Check if the message was sent correctly
+            zmq_recv(radio, (void *) msg_buffer, sizeof(msg_buffer), 0);
+        } else {
+            rc = zmq_send_group(radio, "GRP", msg_buffer, 0);
+        }
 
         // Free msg_buffer after It's been used
         free((void *) msg_buffer);
