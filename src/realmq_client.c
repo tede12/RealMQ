@@ -15,7 +15,7 @@
 #include "qos/accrual_detector/phi_accrual_failure_detector.h"
 #include "string_manip.h"
 
-//#define QOS_ENABLE
+//#define QOS_ENABLE    // Better enable it from the CMakelists.txt
 
 // ============================================= Global configuration ==================================================
 void *g_shared_context;
@@ -248,7 +248,7 @@ void client_thread(void *thread_id) {
 #endif
 
         // Random sleep from 0 to 10ms
-        rand_sleep(0, 1);
+        rand_sleep(0, 2);
     }
 
 // Add count_msg to g_count_msg
