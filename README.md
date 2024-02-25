@@ -87,8 +87,7 @@ client (publisher) sends messages to the server (subscriber) using a **TCP** or 
 
 - Client threads
     - PUBLISHER socket (`ZMQ_PUB`/`ZMQ_RADIO`) (for sending messages to the server)
-    - RESPONDER socket (`ZMQ_SUB`/`ZMQ_DISH`) (for acknowledging messages from the server)
-      -  
+    - RESPONDER socket (`ZMQ_SUB`/`ZMQ_DISH`) (for acknowledging messages from the server) 
 - Server threads
     - SUBSCRIBER socket (`ZMQ_SUB/ZMQ_DISH`) (for receiving messages from client)
     - RESPONDER socket (`ZMQ_REP`) (for acknowledging messages from client, only in the case of TCP)
